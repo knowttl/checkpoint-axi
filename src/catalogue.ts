@@ -26,24 +26,24 @@ const writeFlags = { ...common,
   confirm: "Exact operation followed by a space and the comma-separated IDs in supplied order",
 };
 const exceptionWriteFlags = { ...common, execute: writeFlags.execute, "dry-run": writeFlags["dry-run"],
-  confirm: "Exact operation followed by a space and every target from preview (payload sha256 for create, exception ID or comma-separated item IDs otherwise)" };
+  confirm: "Exact operation followed by a space and every target from preview (payload sha256 for create and malware/url/dlp update, exception ID or comma-separated item IDs otherwise)" };
 const input = "Required absolute private JSON file containing documented requestData fields directly; fields depend on kind; update sends a replacement PUT";
 
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
-  "exception create": { description: "Preview or create one phishing-allow, phishing-block, spam-allow, anomaly or click-time exception; C9 response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93)",
-    flags: { ...exceptionWriteFlags, input },
+  "exception create": { description: "Preview or create one exception of any kind; anomaly/click-time/malware/url/dlp response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93, 102-105, 113-116, 123-126)",
+    flags: { ...exceptionWriteFlags, input, specific: "Malware/url/dlp only: use the documented create-specific /exceptions route; default false; included in confirmation digest" },
     examples: ["checkpoint-axi exception create phishing-allow --input /absolute/rule.json", "checkpoint-axi exception create spam-allow --input /absolute/rule.json --execute --confirm 'exception.spam-allow.create sha256:<preview-digest>'"] },
-  "exception update": { description: "Preview or replace one phishing-allow, phishing-block, spam-allow or click-time exception by ID; click-time is single-item only (guide pages 64-67, 78-81, 94-96)",
+  "exception update": { description: "Preview or replace one exception; phishing/spam/click-time require an ID; malware/url/dlp identify it in --input without an ID; anomaly unsupported (guide pages 64-67, 78-81, 94-96, 105-107, 116-117, 126-127)",
     flags: { ...exceptionWriteFlags, input },
     examples: ["checkpoint-axi exception update phishing-block <id> --input /absolute/rule.json", "checkpoint-axi exception update spam-allow <id> --input /absolute/rule.json --execute --confirm 'exception.spam-allow.update <id>'"] },
-  "exception remove": { description: "Preview or remove one phishing-allow, phishing-block, spam-allow, anomaly rule or click-time item by ID (guide pages 67-69, 81-82, 85-87, 98-99)",
+  "exception remove": { description: "Preview or remove one phishing/spam/anomaly/click-time exception by ID; malware/url/dlp refuse ENDPOINT_UNVERIFIED before authentication (guide pages 67-69, 81-82, 85-87, 98-99, 108-110, 119-120, 129-131)",
     flags: exceptionWriteFlags,
     examples: ["checkpoint-axi exception remove phishing-allow <id>", "checkpoint-axi exception remove spam-allow <id> --execute --confirm 'exception.spam-allow.remove <id>'"] },
   "exception remove-items": { description: "Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98)",
     flags: { ...exceptionWriteFlags, ids: "Required 1-20 unique comma-separated click-time item IDs" },
     examples: ["checkpoint-axi exception remove-items click-time --ids <id1>,<id2>", "checkpoint-axi exception remove-items click-time --ids <id1>,<id2> --execute --confirm 'exception.click-time.remove-items <id1>,<id2>'"] },
-  "exception clear": { description: "Refuse click-time clear with ENDPOINT_UNVERIFIED until commissioning provides a trustworthy pre-read count (guide pages 87-88, 96-97)",
+  "exception clear": { description: "Refuse click-time/malware/url/dlp clear with ENDPOINT_UNVERIFIED until commissioning establishes counts and delete contracts (guide pages 87-88, 96-97, 107-110, 117-120, 128-131)",
     flags: exceptionWriteFlags,
     examples: ["checkpoint-axi exception clear click-time", "checkpoint-axi exception clear click-time --dry-run"] },
   "event action": { description: "Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45)",

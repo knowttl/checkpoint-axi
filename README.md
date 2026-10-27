@@ -1,8 +1,8 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C9 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions, Anti-Phishing/Spam exception writes and anomaly/click-time item writes.
-Downloads, other writes and Artium integration arrive in later slices.
+Slices C1-C10 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions and exception writes for all eight kinds.
+Downloads and Artium integration arrive in later slices; explicitly unverified operations remain refused until commissioning.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
 ## Local use
@@ -35,13 +35,13 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 | `checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
 | `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
 | `checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
-| `checkpoint-axi exception clear` | Refuse click-time clear with ENDPOINT_UNVERIFIED until commissioning provides a trustworthy pre-read count (guide pages 87-88, 96-97) |
-| `checkpoint-axi exception create` | Preview or create one phishing-allow, phishing-block, spam-allow, anomaly or click-time exception; C9 response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93) |
+| `checkpoint-axi exception clear` | Refuse click-time/malware/url/dlp clear with ENDPOINT_UNVERIFIED until commissioning establishes counts and delete contracts (guide pages 87-88, 96-97, 107-110, 117-120, 128-131) |
+| `checkpoint-axi exception create` | Preview or create one exception of any kind; anomaly/click-time/malware/url/dlp response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93, 102-105, 113-116, 123-126) |
 | `checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
-| `checkpoint-axi exception remove` | Preview or remove one phishing-allow, phishing-block, spam-allow, anomaly rule or click-time item by ID (guide pages 67-69, 81-82, 85-87, 98-99) |
+| `checkpoint-axi exception remove` | Preview or remove one phishing/spam/anomaly/click-time exception by ID; malware/url/dlp refuse ENDPOINT_UNVERIFIED before authentication (guide pages 67-69, 81-82, 85-87, 98-99, 108-110, 119-120, 129-131) |
 | `checkpoint-axi exception remove-items` | Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98) |
 | `checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
-| `checkpoint-axi exception update` | Preview or replace one phishing-allow, phishing-block, spam-allow or click-time exception by ID; click-time is single-item only (guide pages 64-67, 78-81, 94-96) |
+| `checkpoint-axi exception update` | Preview or replace one exception; phishing/spam/click-time require an ID; malware/url/dlp identify it in --input without an ID; anomaly unsupported (guide pages 64-67, 78-81, 94-96, 105-107, 116-117, 126-127) |
 | `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 | `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
@@ -326,6 +326,49 @@ No created ID, task ID or count is derived; reconcile using list or item reads, 
 `exception clear click-time` refuses ENDPOINT_UNVERIFIED before authentication, including previews: the required freshly read count cannot be trusted from an undocumented list shape (pages 87-88, 96-97).
 Clear, collection PUT, response identities, existence/no-op detection and acknowledgement shapes remain live-commissioning follow-ups through Artium.
 All tests are offline and synthetic; no live behavior or token lifetime has been commissioned.
+
+## Malware, URL and DLP writes (C10)
+
+`exception create <malware|url|dlp> --input /absolute/rule.json` sends POST to the family route; add `--specific` to use its documented `/exceptions` create-specific route (guide pages 102-105, 113-116, 123-126).
+`exception update <malware|url|dlp> --input /absolute/rule.json` sends PUT to the family route (pages 105-107, 116-117, 126-127).
+Updates take no positional ID: `exception_type` and `exception_str` in the body identify the target.
+Families map to `checkpoint2`, `avanan_url` and `avanan_dlp` under `/sectool-exceptions/`.
+The private input file contains requestData fields directly, without an envelope.
+Create requires `exception_type`, `exception_str`, `comment`, `entity_type`, `entity_id`, `file_name`, `created_by_email` and boolean `is_exclusive`.
+Malware create additionally requires `exception_payload: { "condition": "with_link" }`.
+Update requires only `exception_type`, `exception_str`, `comment` and `exception_payload` with a nonempty string `condition`.
+Types are the same family-specific values listed in [exception reads](#exception-reads-c5); type, value and entity selectors must be nonempty.
+Unknown fields are rejected, including nested payload fields.
+These provisional input contracts follow the guide's request bodies: it publishes no parameter tables defining optionality or additional payload fields.
+
+```json
+{
+  "exception_type": "allow-url",
+  "exception_str": "https://example.com/path",
+  "comment": "Synthetic rule",
+  "entity_type": "user",
+  "entity_id": "synthetic-user-1",
+  "file_name": "synthetic.json",
+  "created_by_email": "sender@example.com",
+  "is_exclusive": true
+}
+```
+
+Every command uses the C6 coordinator, with the exact operation `exception.<kind>.<create|update>`, configured write opt-in and forced read-only taking precedence.
+Commands preview by default; execution requires `--execute` and the exact preview confirmation.
+Both create and update confirmations bind the complete normalized payload and create-specific route choice by SHA-256, so changing either requires a new confirmation.
+The guide provides no response schemas for existence or no-op checks, so C10 follows C9: previews mark target state unverified, and initial/final state callbacks retain uncertainty without inferring identity or no-op state.
+Durable redacted intent and final scope/configuration checks precede one send; the journal contains metadata only.
+Requests never retry or reauthenticate after a mutation response.
+Successful HTTP status with valid JSON (or empty HTTP 204) and any supplied successful response envelope returns `accepted`, `auditId`, `responseSchema: unverified` and the bounded redacted response.
+No created ID or task ID is inferred; reconcile with `exception list <kind> --type <type>`.
+Ambiguous acknowledgements return `OUTCOME_UNKNOWN`; never replay automatically.
+
+All six `exception remove <malware|url|dlp> <value>` and `exception clear <malware|url|dlp>` commands refuse `ENDPOINT_UNVERIFIED` before configuration, credentials, authentication or journaling, including previews.
+The guide documents them as identical to create requests (pages 102 vs 107, 104 vs 108, 113 vs 117, 114 vs 119, 123 vs 128, 124 vs 129).
+No guessed delete request can be sent through the transport.
+Delete contracts, response identities, input optionality, existence/no-op detection, acknowledgement shapes, auth and token lifetime remain unverified until the owner commissions everything together through Artium.
+All automated verification is offline with synthetic requests and arbitrary provisional acknowledgements.
 
 ## Agent discovery
 

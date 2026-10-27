@@ -86,7 +86,14 @@ Clearing a list requires confirmation including the freshly read count, which C9
 Therefore exception clear click-time refuses ENDPOINT_UNVERIFIED before authentication, including previews, until commissioning supplies a trustworthy count contract (pages 87-88, 96-97).
 Click-time update exposes only PUT items/{item_id}; collection PUT items (pages 93-94) is deferred to commissioning.
 Clear, collection PUT, response identities, existence/no-op detection and acknowledgement shapes are explicit live-commissioning follow-ups through Artium.
-Six malware/URL/DLP delete operations stay refused as `ENDPOINT_UNVERIFIED` until manual commissioning resolves the guide's identical create/delete descriptions.
+C10 sends malware/URL/DLP POST create, POST create-specific at /exceptions and PUT update at the family root through the C6 coordinator (pages 102-107, 113-117, 123-127).
+Create-specific is selected with --specific; updates identify the target in the private input body and take no positional ID.
+Both operations confirm a SHA-256 binding the complete normalized payload and route choice.
+Input contracts follow documented request bodies, not unpublished parameter tables; optionality and additional payload fields remain unverified.
+Like C9, response identities and no-op state remain explicitly unverified, without invented existence reads.
+Durable intent, final scope checks, rate spacing, single-send behavior and unverified JSON acknowledgements follow the C9 contract.
+All six malware/URL/DLP remove/clear commands refuse `ENDPOINT_UNVERIFIED` before configuration or authentication until manual commissioning resolves the guide's identical create/delete descriptions.
+The closed transport also refuses sectool deletes; no guessed request is executable.
 Downloads require `downloads.allow`, a new exclusive 0600 `--out` file, a 50 MiB cap and verified `x-av-sha256`.
 They never stream to stdout and report only path, size and SHA-256.
 Hosted downloads will reuse Artium's artifact mechanism in C12.
@@ -94,7 +101,7 @@ Hosted downloads will reuse Artium's artifact mechanism in C12.
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read, C5 exception-read, C6 email-write, C7 name-only event-action, C8 Anti-Phishing/Spam exception-write and C9 anomaly/click-time capabilities (with explicit commissioning deferrals).
+Rows remain planned or excluded except the shipped C2-C10 capabilities (with explicit commissioning deferrals).
 Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
@@ -112,9 +119,9 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 | `spam create update remove` | 75-83 | C8 | write | Shipped in C8; gated allow-list create, PUT replacement and bodyless POST remove with exact scope and confirmation. |
 | `anomaly create remove` | 84-87 | C9 | write | Shipped in C9; gated shared POST distinguished by documented request bodies; response identities remain unverified. |
 | `click-time create update remove remove-items clear` | 91-100 | C9 | write | Shipped in C9; gated item writes; clear refuses ENDPOINT_UNVERIFIED and collection PUT is deferred until commissioning. |
-| `malware create update` | 102-106 | C10 | write | Create, create-specific and modify sectool-exceptions/checkpoint2. |
-| `url create update` | 113-117 | C10 | write | Create, create-specific and modify sectool-exceptions/avanan_url. |
-| `dlp create update` | 123-127 | C10 | write | Create, create-specific and modify sectool-exceptions/avanan_dlp. |
+| `malware create update` | 102-106 | C10 | write | Shipped in C10; gated create, create-specific and PUT modify checkpoint2; response identities remain unverified. |
+| `url create update` | 113-117 | C10 | write | Shipped in C10; gated create, create-specific and PUT modify avanan_url; response identities remain unverified. |
+| `dlp create update` | 123-127 | C10 | write | Shipped in C10; gated create, create-specific and PUT modify avanan_dlp; response identities remain unverified. |
 | `malware remove clear` | 107-110 | C10 | unverified | Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning. |
 | `url remove clear` | 117-120 | C10 | unverified | Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning. |
 | `dlp remove clear` | 128-131 | C10 | unverified | Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning. |

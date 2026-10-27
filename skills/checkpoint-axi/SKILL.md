@@ -76,13 +76,13 @@ That C9 guidance also owns the approved clear and collection-PUT commissioning d
 | `npx -y @knowttl/checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
 | `npx -y @knowttl/checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
 | `npx -y @knowttl/checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
-| `npx -y @knowttl/checkpoint-axi exception clear` | Refuse click-time clear with ENDPOINT_UNVERIFIED until commissioning provides a trustworthy pre-read count (guide pages 87-88, 96-97) |
-| `npx -y @knowttl/checkpoint-axi exception create` | Preview or create one phishing-allow, phishing-block, spam-allow, anomaly or click-time exception; C9 response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93) |
+| `npx -y @knowttl/checkpoint-axi exception clear` | Refuse click-time/malware/url/dlp clear with ENDPOINT_UNVERIFIED until commissioning establishes counts and delete contracts (guide pages 87-88, 96-97, 107-110, 117-120, 128-131) |
+| `npx -y @knowttl/checkpoint-axi exception create` | Preview or create one exception of any kind; anomaly/click-time/malware/url/dlp response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93, 102-105, 113-116, 123-126) |
 | `npx -y @knowttl/checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
-| `npx -y @knowttl/checkpoint-axi exception remove` | Preview or remove one phishing-allow, phishing-block, spam-allow, anomaly rule or click-time item by ID (guide pages 67-69, 81-82, 85-87, 98-99) |
+| `npx -y @knowttl/checkpoint-axi exception remove` | Preview or remove one phishing/spam/anomaly/click-time exception by ID; malware/url/dlp refuse ENDPOINT_UNVERIFIED before authentication (guide pages 67-69, 81-82, 85-87, 98-99, 108-110, 119-120, 129-131) |
 | `npx -y @knowttl/checkpoint-axi exception remove-items` | Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98) |
 | `npx -y @knowttl/checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
-| `npx -y @knowttl/checkpoint-axi exception update` | Preview or replace one phishing-allow, phishing-block, spam-allow or click-time exception by ID; click-time is single-item only (guide pages 64-67, 78-81, 94-96) |
+| `npx -y @knowttl/checkpoint-axi exception update` | Preview or replace one exception; phishing/spam/click-time require an ID; malware/url/dlp identify it in --input without an ID; anomaly unsupported (guide pages 64-67, 78-81, 94-96, 105-107, 116-117, 126-127) |
 | `npx -y @knowttl/checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `npx -y @knowttl/checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 | `npx -y @knowttl/checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
