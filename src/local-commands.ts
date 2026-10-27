@@ -33,7 +33,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--items", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--full", "--all", "--items", "--specific", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();

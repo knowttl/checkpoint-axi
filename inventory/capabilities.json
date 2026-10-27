@@ -138,30 +138,30 @@
       "pages": "102-106",
       "slice": "C10",
       "disposition": "write",
-      "reason": "Create, create-specific and modify sectool-exceptions/checkpoint2.",
+      "reason": "Shipped in C10; gated create, create-specific and PUT modify checkpoint2; response identities remain unverified.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "url create update",
       "pages": "113-117",
       "slice": "C10",
       "disposition": "write",
-      "reason": "Create, create-specific and modify sectool-exceptions/avanan_url.",
+      "reason": "Shipped in C10; gated create, create-specific and PUT modify avanan_url; response identities remain unverified.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "dlp create update",
       "pages": "123-127",
       "slice": "C10",
       "disposition": "write",
-      "reason": "Create, create-specific and modify sectool-exceptions/avanan_dlp.",
+      "reason": "Shipped in C10; gated create, create-specific and PUT modify avanan_dlp; response identities remain unverified.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "malware remove clear",

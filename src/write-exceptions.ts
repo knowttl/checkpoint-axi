@@ -23,9 +23,10 @@ const fail = (code: string, message: string): never => { throw new AxiError(mess
 export async function exceptionWriteCommand(name: `exception ${SectoolsAction}`, kind: string | undefined,
   id: string | undefined, flags: Map<string, string>, store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]) {
   const action = name.slice("exception ".length) as SectoolsAction;
-  if (kind === "anomaly" || kind === "click-time" || action === "remove-items" || action === "clear") {
+  if (kind === "anomaly" || kind === "click-time" || kind === "malware" || kind === "url" || kind === "dlp" || action === "remove-items" || action === "clear") {
     return sectoolsWriteCommand(action, kind ?? "", id, flags, store, transport);
   }
+  if (flags.has("--specific")) return fail("VALIDATION_ERROR", "--specific is only valid for malware, url or dlp create");
   if (kind !== "phishing-allow" && kind !== "phishing-block" && kind !== "spam-allow") {
     return fail("VALIDATION_ERROR", "Choose phishing-allow, phishing-block, spam-allow, anomaly or click-time for exception writes");
   }

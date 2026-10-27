@@ -6,6 +6,7 @@ import { readPrivateFile } from "./private-file.js";
 import type { credentialStore } from "./profiles.js";
 import { gateway } from "./transport.js";
 import { coordinateWrite } from "./writes.js";
+import { exceptionFamilies } from "./exceptions.js";
 
 export type SectoolsAction = "create" | "update" | "remove" | "remove-items" | "clear";
 const identifier = z.string().regex(/^[A-Za-z0-9_-]{1,256}$/);
@@ -17,18 +18,33 @@ const anomalyInput = z.strictObject({ addedBy: z.string(), requestJson: z.strict
 }) });
 const clickInput = z.strictObject({ listItemName: text, listId: identifier, createdBy: z.string() });
 const clickUpdate = clickInput.extend({ listItemId: identifier });
+export type SectoolKind = "malware" | "url" | "dlp";
+const condition = z.strictObject({ condition: text });
+// Guide pp.103-106,113-117,123-127 supplies request examples, but no parameter tables.
+const sectoolFields = { exception_type: text, exception_str: text, comment: z.string() };
+const sectoolCreate = z.strictObject({ ...sectoolFields, entity_type: text, entity_id: text,
+  file_name: z.string(), created_by_email: z.string(), is_exclusive: z.boolean() });
+const malwareCreate = sectoolCreate.extend({ exception_payload: condition });
+const sectoolUpdate = z.strictObject({ ...sectoolFields, exception_payload: condition });
 const fail = (code: string, message: string): never => { throw new AxiError(message, code,
   ["Run checkpoint-axi exception create --help; live response identities remain unverified until commissioning through Artium"]); };
 
 export async function sectoolsWriteCommand(action: SectoolsAction, kind: string, id: string | undefined,
   flags: Map<string, string>, store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]) {
-  if (kind !== "anomaly" && kind !== "click-time" || kind === "anomaly" && action !== "create" && action !== "remove") {
-    return fail("VALIDATION_ERROR", "Anomaly supports create/remove; click-time supports create/update/remove/remove-items/clear");
+  const sectool = kind === "malware" || kind === "url" || kind === "dlp";
+  if (sectool && (action === "remove" || action === "clear")) {
+    return fail("ENDPOINT_UNVERIFIED", "Malware, URL and DLP deletes duplicate create requests in the guide (pages 102-109, 113-119, 123-129); commissioning must establish the real requests");
   }
+  if (sectool ? action !== "create" && action !== "update"
+    : kind !== "anomaly" && kind !== "click-time" || kind === "anomaly" && action !== "create" && action !== "remove") {
+    return fail("VALIDATION_ERROR", "Anomaly supports create/remove; click-time supports create/update/remove/remove-items/clear; malware/url/dlp support create/update");
+  }
+  if (flags.has("--specific") && (!sectool || action !== "create")) return fail("VALIDATION_ERROR", "--specific is only valid for malware, url or dlp create");
+  if (sectool && id !== undefined) return fail("VALIDATION_ERROR", "Malware, URL and DLP updates identify the exception in --input; omit the positional ID");
   if (flags.has("--execute") && flags.has("--dry-run")) return fail("VALIDATION_ERROR", "--execute cannot combine with --dry-run");
   if (action === "clear") return fail("ENDPOINT_UNVERIFIED", "Click-time clear requires a trustworthy pre-read count; the response schema is undocumented (guide pages 87-88, 96-97)");
   if (action !== "remove-items" && flags.has("--ids")) return fail("VALIDATION_ERROR", "--ids is only valid for click-time remove-items");
-  if ((action === "update" || action === "remove") && !identifier.safeParse(id).success) return fail("VALIDATION_ERROR", "Supply one exception ID containing letters, digits, underscores or hyphens");
+  if (!sectool && (action === "update" || action === "remove") && !identifier.safeParse(id).success) return fail("VALIDATION_ERROR", "Supply one exception ID containing letters, digits, underscores or hyphens");
   let data: Record<string, unknown> | undefined;
   if (action === "create" || action === "update") {
     const path = flags.get("--input");
@@ -39,13 +55,15 @@ export async function sectoolsWriteCommand(action: SectoolsAction, kind: string,
       if (error instanceof AxiError) throw error;
       return fail("VALIDATION_ERROR", "Cannot read a valid private JSON input file");
     }
-    const parsed = (kind === "anomaly" ? anomalyInput : action === "update" ? clickUpdate : clickInput).safeParse(value);
+    const parsed = (sectool ? action === "update" ? sectoolUpdate : kind === "malware" ? malwareCreate : sectoolCreate
+      : kind === "anomaly" ? anomalyInput : action === "update" ? clickUpdate : clickInput).safeParse(value);
     if (!parsed.success) return fail("VALIDATION_ERROR", "Input must contain only the documented requestData fields for this operation");
     data = parsed.data;
-    if (action === "update" && data.listItemId !== id) return fail("VALIDATION_ERROR", "Input listItemId must match the positional item ID");
+    if (sectool && !(exceptionFamilies[kind as SectoolKind].types as readonly string[]).includes(String(data.exception_type))) return fail("VALIDATION_ERROR", "Input exception_type must be a documented type for the selected kind");
+    if (!sectool && action === "update" && data.listItemId !== id) return fail("VALIDATION_ERROR", "Input listItemId must match the positional item ID");
   }
-  const targets = action === "remove-items" ? flags.get("--ids")?.split(",") ?? [] : action === "create"
-    ? [`sha256:${createHash("sha256").update(JSON.stringify(data)).digest("hex")}`] : [id!];
+  const targets = action === "remove-items" ? flags.get("--ids")?.split(",") ?? [] : action === "create" || sectool
+    ? [`sha256:${createHash("sha256").update(JSON.stringify(sectool ? { specific: flags.has("--specific"), data } : data)).digest("hex")}`] : [id!];
   if (!targets.length || targets.length > 20 || new Set(targets).size !== targets.length
     || action === "remove-items" && targets.some((target) => !identifier.safeParse(target).success)) {
     return fail("VALIDATION_ERROR", "Supply --ids with 1-20 unique comma-separated item IDs");
@@ -69,8 +87,8 @@ export async function sectoolsWriteCommand(action: SectoolsAction, kind: string,
     readState: async () => ({ noop: false, state: { targetState: "unverified", responseSchema: "unverified",
       reason: "Existence and no-op detection require live response identity commissioning", ...(data ? { requested: data } : {}) } }),
     send: async (authorization, checkScopeBeforeSend) => ({
-      response: await session.sectoolsWrite(authorization, kind, action, targets, checkScopeBeforeSend, data),
+      response: await session.sectoolsWrite(authorization, kind as "anomaly" | "click-time" | SectoolKind, action, targets, checkScopeBeforeSend, data, flags.has("--specific")),
       responseSchema: "unverified",
-      help: [`Run checkpoint-axi exception list ${kind}${kind === "click-time" ? " --items" : ""} to inspect unverified JSON and reconcile; never replay automatically`],
+      help: [`Run checkpoint-axi exception list ${kind}${sectool ? ` --type ${String(data!.exception_type)}` : kind === "click-time" ? " --items" : ""} to inspect unverified JSON and reconcile; never replay automatically`],
     }) });
 }

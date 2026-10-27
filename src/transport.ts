@@ -211,18 +211,23 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
       throw failure("OUTCOME_UNKNOWN", "Exception write acknowledgement requires reconciliation; never replay automatically");
     }
   }
-  // Guide pp.84-99: request bodies distinguish the shared POST routes.
+  // Guide pp.84-99,102-127: closed routes; request bodies distinguish shared POSTs.
   // Response schemas are unpublished; preserve JSON, interpreting only HTTP/envelope status.
-  async function sectoolsWrite(authorization: WriteAuthorization, kind: "anomaly" | "click-time",
+  async function sectoolsWrite(authorization: WriteAuthorization, kind: "anomaly" | "click-time" | "malware" | "url" | "dlp",
     action: "create" | "update" | "remove" | "remove-items", targets: readonly string[],
-    checkScopeBeforeSend: () => void, data?: Record<string, unknown>): Promise<unknown> {
-    if (!mutation || !["anomaly", "click-time"].includes(kind) || !["create", "update", "remove", "remove-items"].includes(action)
+    checkScopeBeforeSend: () => void, data?: Record<string, unknown>, specific = false): Promise<unknown> {
+    const sectools = { malware: "checkpoint2", url: "avanan_url", dlp: "avanan_dlp" };
+    const sectool = Object.hasOwn(sectools, kind);
+    if (sectool && action !== "create" && action !== "update") throw failure("ENDPOINT_UNVERIFIED", "Sectool deletes require commissioning; nothing was sent");
+    if (!mutation || !["anomaly", "click-time", "malware", "url", "dlp"].includes(kind) || !["create", "update", "remove", "remove-items"].includes(action)
       || kind === "anomaly" && action !== "create" && action !== "remove"
+      || specific && (!sectool || action !== "create")
       || action !== "remove-items" && targets.length !== 1
       || !consumeWriteAuthorization(authorization, `exception.${kind}.${action}`, targets, profile.name, profile.region)) {
       throw failure("WRITES_DISABLED", "A one-use coordinator authorization is required");
     }
-    const path = kind === "anomaly" ? "/sectools/anomaly/exceptions"
+    const path = sectool ? `/sectool-exceptions/${sectools[kind as keyof typeof sectools]}${specific ? "/exceptions" : ""}`
+      : kind === "anomaly" ? "/sectools/anomaly/exceptions"
       : `/sectools/click_time_protection/exceptions/items${action === "update" || action === "remove" ? `/${encodeURIComponent(targets[0]!)}` : ""}`;
     await authenticate();
     await spaceException(path);
