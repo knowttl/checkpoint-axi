@@ -1,6 +1,6 @@
 {
   "name": "@knowttl/checkpoint-axi",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Inspect Check Point Email Security through compact, guarded AXI commands",
   "license": "MIT",
   "type": "module",
@@ -13,10 +13,24 @@
     "./inventory": "./inventory/capabilities.json",
     "./axi-credential.schema.json": "./axi-credential.schema.json"
   },
-  "files": ["bin", "dist/src", "inventory", "axi-credential.schema.json", "docs/commands.md", "skills"],
-  "publishConfig": { "access": "public" },
-  "repository": { "type": "git", "url": "git+https://github.com/knowttl/checkpoint-axi.git" },
-  "engines": { "node": ">=22.12.0" },
+  "files": [
+    "bin",
+    "dist/src",
+    "inventory",
+    "axi-credential.schema.json",
+    "docs/commands.md",
+    "skills"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/knowttl/checkpoint-axi.git"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "packageManager": "pnpm@10.34.6",
   "scripts": {
     "build": "tsc -p tsconfig.json",
