@@ -21,14 +21,15 @@ All resolved secret forms are registered for raw, JSON-escaped and URL-encoded o
 
 C2 provides one closed HTTPS transport boundary with TLS verification, redirect refusal and a fresh `x-av-req-id` UUID per request.
 The guide uses `POST /auth/external` with `clientId` and `accessKey` (the client secret), then Bearer authorization under `/app/hec-api/v1.0` (pages 8-10).
-Tokens stay in memory once per run with one re-exchange on 401.
+Tokens stay in memory and are never cached to disk; reads permit at most one token re-exchange per invocation after a 401.
+Action requests never reauthenticate or retry, including on 401 or 429.
 Token response shape and lifetime are undocumented; the owner will commission all slices together through Artium after the full build.
 Only a pass/fail commissioning note may enter this public repository.
 Automated tests never contact that tenant.
 The provisional token field candidates and commissioning failure code are documented in README.
 Doctor performs one page of the default 24-hour entity search for the selected SaaS and discards the data.
 The transport normalizes object/array response data and preserves scroll metadata for the read slices.
-Auth, re-exchange and retries share a 10-request, 8 MiB and 60-second invocation budget.
+Auth, re-exchange, retries and delays share the [invocation budgets in README](../README.md#doctor-and-commissioning).
 C3-C4 share bound continuation cursors and collection row limits for email search and event list in `src/reads.ts`.
 
 ## Read, write and download safety
@@ -43,6 +44,15 @@ The C6 write coordinator requires configured `allowWrites` and exact operation s
 `CHECKPOINT_AXI_READ_ONLY` overrides configured write permission.
 Target batches stop at 20; ambiguous outcomes report `OUTCOME_UNKNOWN` and are never replayed.
 Entity/event actions return `accepted` and `taskId`, since execution is asynchronous.
+The email action transport consumes a one-use coordinator authorization bound to the operation, targets, profile and region.
+Before a send, the coordinator re-reads every target and checks that the selected profile has not changed.
+The API offers no conditional entity-action request, so this cannot prevent a concurrent server-side change after preflight.
+The journal and its lock must be private regular files in a private directory; symlinks, hard-linked journals, insecure modes, an incomplete journal or an existing lock block execution.
+POSIX files are created with mode 0600 and the directory with 0700.
+On Windows, newly created files and the journal directory receive protected DACLs granting FullControl only to the current user, SYSTEM and Administrators; existing paths must already satisfy this policy.
+Journal records contain only redacted metadata, never headers, message bodies, credentials or tokens.
+The intent is synced before re-reading and sending; POSIX directory entries are also synced for crash durability.
+`src/writes.ts` owns these checks; `test/writes.test.ts` exercises ordering, unsafe journals, scope changes and ambiguous acknowledgements with synthetic data.
 Operation names are `email.quarantine`, `email.restore`, `event.action.<name>` and `exception.<kind>.<create|update|remove|remove-items|clear>`.
 Event action names must be validated against `availableEventActions`.
 Clearing a list requires confirmation including the freshly read count.

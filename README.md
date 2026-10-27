@@ -89,7 +89,7 @@ An empty override uses that default.
 
 POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
 Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
-On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email, event, task and exception reads also verify a protected DACL for the current user, SYSTEM and Administrators.
+On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email, event, task and exception API commands also verify a protected DACL for the current user, SYSTEM and Administrators.
 
 ## Doctor and commissioning
 
@@ -104,7 +104,7 @@ No commissioning run has been performed by the automated tests.
 The vendor guide does not document the token response shape or lifetime (page 8).
 The provisional parser accepts one distinct nonempty printable ASCII token without whitespace from `token`, `access_token` or `accessToken` at the root or within `data` or `responseData`.
 Unsupported, conflicting or invalid values fail with `AUTH_SHAPE_UNVERIFIED`, requiring owner commissioning rather than printing the response.
-Tokens stay in memory, are never cached to disk, and are exchanged once per invocation with at most one re-exchange on an API 401.
+Token persistence and reauthentication rules are defined in [the transport design](docs/design.md#credentials-and-transport).
 All requests carry a new request UUID; authenticated API calls carry Bearer authorization.
 TLS certificate verification stays enabled and redirects are refused.
 Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
@@ -182,21 +182,20 @@ Supply 1-20 unique entity IDs, comma-separated without spaces.
 Previews read each entity, verify its identity and email type, check the available action and show current state.
 An explicit `--dry-run` also previews and cannot combine with `--execute`.
 
-Every action is disruptive and requires `--execute` plus exact confirmation containing the operation, a space and every supplied ID in order:
+Every action is disruptive.
+Sending an action requires `--execute` plus exact confirmation containing the operation, a space and the comma-separated supplied IDs in order:
 
 ```sh
 checkpoint-axi email restore --ids synthetic-email-1 --execute --confirm 'email.restore synthetic-email-1'
 ```
 
-Already quarantined or explicitly restored emails are no-ops; a mixed batch sends only targets still needing the action after re-read.
+Quarantine is a no-op when `isQuarantined` is true; restore is a no-op only when `isRestored` is true and `isQuarantined` is false.
+An entirely no-op batch returns without confirmation or a send; a mixed batch sends only targets still needing the action after re-read.
 The confirmation still names the full requested batch.
 Before sending, the coordinator records and syncs a redacted JSON-lines `kind: intent` record with `auditId`, operation, profile, region and targets.
 It re-reads every target, checks the profile has not changed, and sends at most one action request.
 Previews and initial no-ops create no journal.
-The journal and its lock must be private regular files in a private directory; symlinks, hard-linked journals, insecure modes, an incomplete journal or an existing lock block execution.
-POSIX files are created with mode 0600 and the directory with 0700.
-On Windows, newly created files and the journal directory receive protected DACLs granting FullControl only to the current user, SYSTEM and Administrators; existing paths must already satisfy this policy.
-No headers, message bodies, credentials or tokens enter the journal.
+The [write safety design](docs/design.md#read-write-and-download-safety) defines journal privacy, durability and file requirements.
 An intent-recording failure returns `INTENT_NOT_RECORDED` before sending.
 An outcome-recording failure returns `OUTCOME_NOT_RECORDED` and requires reconciliation.
 
@@ -205,8 +204,7 @@ Use `checkpoint-axi task show <taskId>` to inspect execution; submission does no
 Action requests never retry, including on 401 or 429, and never follow redirects.
 A disconnected, invalid, incomplete or otherwise unsuccessful acknowledgement returns `OUTCOME_UNKNOWN` with its audit ID.
 Read back every target and reconcile the journal before any further action; never replay automatically.
-Write sessions retain the 60-second and 8 MiB limits and allow at most 44 HTTP requests for two 20-target preflights, one send, authentication and one read reauthentication.
-The API offers no conditional entity-action request, so re-reading cannot prevent a concurrent server-side change after preflight.
+Write preflights, authentication and the action share the [transport limits](#doctor-and-commissioning); read retries also consume that budget.
 All C6 verification is offline and synthetic; live action behavior, auth shape and token lifetime remain unverified until owner commissioning through Artium.
 
 ## Agent discovery

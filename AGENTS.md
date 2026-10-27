@@ -14,7 +14,7 @@ Do not add hosted test workflows; only release publication runs on GitHub.
 The planned inventory never enables execution.
 Only the seven public region gateways are allowed; never introduce a free origin or arbitrary HTTP.
 Secrets never enter argv or output, and tokens belong only in memory.
-Later writes must require operation scope, preview, exact confirmation and durable redacted intent; forced read-only always wins.
+Writes must require operation scope, preview, exact confirmation and durable redacted intent; forced read-only always wins.
 
 ## Tests and public repository hygiene
 
