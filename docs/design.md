@@ -96,12 +96,19 @@ All six malware/URL/DLP remove/clear commands refuse `ENDPOINT_UNVERIFIED` befor
 The closed transport also refuses sectool deletes; no guessed request is executable.
 Downloads require `downloads.allow`, a new exclusive 0600 `--out` file, a 50 MiB cap and verified `x-av-sha256`.
 They never stream to stdout and report only path, size and SHA-256.
+The C11 download module buffers at most 50 MiB per response, validates the mandatory hash and writes only verified bytes to the exclusively created private file; failures remove that file.
+Windows output receives the same protected DACL used for other private writes.
+The closed transport exposes only the three documented download routes, with read retry and token re-exchange bounds.
+Email requires profile scope as the scopes header; attachment downloads use the optional scope query, with --scope overriding profile scope.
+Email/ZIP hash headers are absent from the guide, so their availability and all download scope behavior remain explicitly unverified until commissioning.
+The approved mandatory hash check applies to all three commands even when an uncommissioned server omits the header.
+An HTTP 200 attachment ZIP may be partial (page 136); no completeness or automatic extraction is implied.
 Hosted downloads will reuse Artium's artifact mechanism in C12.
 
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Rows remain planned or excluded except the shipped C2-C10 capabilities (with explicit commissioning deferrals).
+Rows remain planned or excluded except the shipped C2-C11 capabilities (with explicit commissioning deferrals).
 Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
@@ -125,7 +132,7 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 | `malware remove clear` | 107-110 | C10 | unverified | Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning. |
 | `url remove clear` | 117-120 | C10 | unverified | Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning. |
 | `dlp remove clear` | 128-131 | C10 | unverified | Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning. |
-| `email and attachment downloads` | 131-137 | C11 | download | Entity EML, individual attachment and all-attachment ZIP with opt-in. |
+| `email and attachment downloads` | 131-137 | C11 | download | Shipped in C11; opt-in private files, 50 MiB cap and mandatory SHA-256; scopes and email/ZIP hash availability remain unverified. |
 | `audit logs` | 138 | C12 | excluded | Outside this API; use Check Point Portal APIs separately. |
 
 ## Slices and integration
@@ -140,7 +147,7 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 8. C8: Anti-Phishing and Spam writes.
 9. C9: anomaly and click-time writes.
 10. C10: malware, URL and DLP create/update; six deletes implemented but refused.
-11. C11: downloads, final skills/docs and 0.1.0 release after trusted-publisher registration.
+11. C11: downloads, final skills/docs and release preparation; see [README's release guidance](../README.md#releases) for publication status and mechanics.
 12. C12: separate Artium PR with credential schema, adapter, write policy, hosted artifacts, tool schema/maps, inventory, exact package/integrity pins and full-content skill overlay.
 
 ## Change recipe and tests

@@ -6,6 +6,40 @@ Inspect Check Point Email Security through compact, guarded AXI commands.
 Email, event, task and exception reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.
 Run each command with `--help` for concise help.
 
+## attachment download
+
+Download one attachment to a new private file with profile opt-in, a 50 MiB cap and verified x-av-sha256; scope behavior is unverified (guide pages 133-135)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--help` | Show concise command help; default false |
+| `--out` | Required absolute new output file; mode 0600, never stdout or overwrite |
+| `--scope` | Optional authorized scope query; default profile scope when configured; live behavior unverified |
+
+```sh
+checkpoint-axi attachment download <entity-id> <attachment-id> --out /absolute/attachment
+checkpoint-axi attachment download <entity-id> <attachment-id> --scope <scope> --out /absolute/attachment
+```
+
+## attachment download-all
+
+Download available attachments as a ZIP to a new private file with opt-in, a 50 MiB cap and mandatory SHA-256 verification; ZIP hash availability and scopes are unverified; HTTP 200 may contain only some attachments (guide pages 135-137)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--help` | Show concise command help; default false |
+| `--out` | Required absolute new output file; mode 0600, never stdout or overwrite |
+| `--scope` | Optional authorized scope query; default profile scope when configured; live behavior unverified |
+
+```sh
+checkpoint-axi attachment download-all <entity-id> --out /absolute/attachments
+checkpoint-axi attachment download-all <entity-id> --scope <scope> --out /absolute/attachments
+```
+
 ## auth status
 
 Validate the selected local profile and secret source without API calls
@@ -56,6 +90,23 @@ Check regional API authentication and one bounded email search without printing 
 ```sh
 checkpoint-axi doctor
 checkpoint-axi doctor --profile example --saas office365_emails
+```
+
+## email download
+
+Download an email to a new private file with profile opt-in, a 50 MiB cap and mandatory SHA-256 verification; scopes and email hash availability are unverified (guide pages 131-132)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--help` | Show concise command help; default false |
+| `--out` | Required absolute new output file; mode 0600, never stdout or overwrite |
+| `--original` | Download original email without processing modifications; default false |
+
+```sh
+checkpoint-axi email download <entity-id> --out /absolute/message
+checkpoint-axi email download <entity-id> --original --out /absolute/original
 ```
 
 ## email quarantine

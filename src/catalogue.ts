@@ -31,6 +31,15 @@ const input = "Required absolute private JSON file containing documented request
 
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
+  "email download": { description: "Download an email to a new private file with profile opt-in, a 50 MiB cap and mandatory SHA-256 verification; scopes and email hash availability are unverified (guide pages 131-132)",
+    flags: { config: common.config, profile: common.profile, help: common.help, out: "Required absolute new output file; mode 0600, never stdout or overwrite", original: "Download original email without processing modifications; default false" },
+    examples: ["checkpoint-axi email download <entity-id> --out /absolute/message", "checkpoint-axi email download <entity-id> --original --out /absolute/original"] },
+  "attachment download": { description: "Download one attachment to a new private file with profile opt-in, a 50 MiB cap and verified x-av-sha256; scope behavior is unverified (guide pages 133-135)",
+    flags: { config: common.config, profile: common.profile, help: common.help, out: "Required absolute new output file; mode 0600, never stdout or overwrite", scope: "Optional authorized scope query; default profile scope when configured; live behavior unverified" },
+    examples: ["checkpoint-axi attachment download <entity-id> <attachment-id> --out /absolute/attachment", "checkpoint-axi attachment download <entity-id> <attachment-id> --scope <scope> --out /absolute/attachment"] },
+  "attachment download-all": { description: "Download available attachments as a ZIP to a new private file with opt-in, a 50 MiB cap and mandatory SHA-256 verification; ZIP hash availability and scopes are unverified; HTTP 200 may contain only some attachments (guide pages 135-137)",
+    flags: { config: common.config, profile: common.profile, help: common.help, out: "Required absolute new output file; mode 0600, never stdout or overwrite", scope: "Optional authorized scope query; default profile scope when configured; live behavior unverified" },
+    examples: ["checkpoint-axi attachment download-all <entity-id> --out /absolute/attachments", "checkpoint-axi attachment download-all <entity-id> --scope <scope> --out /absolute/attachments"] },
   "exception create": { description: "Preview or create one exception of any kind; anomaly/click-time/malware/url/dlp response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93, 102-105, 113-116, 123-126)",
     flags: { ...exceptionWriteFlags, input, specific: "Malware/url/dlp only: use the documented create-specific /exceptions route; default false; included in confirmation digest" },
     examples: ["checkpoint-axi exception create phishing-allow --input /absolute/rule.json", "checkpoint-axi exception create spam-allow --input /absolute/rule.json --execute --confirm 'exception.spam-allow.create sha256:<preview-digest>'"] },
