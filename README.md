@@ -156,7 +156,7 @@ SaaS defaults to the selected profile's value or `office365_emails`; other event
 Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](#email-reads-c3).
 Repeat all original event selectors with `--cursor`; the cursor preserves the original date window.
 Event and task text is redacted before 500-character previews; use `--full` for full strings and `--fields` to select top-level fields.
-Event actions arrive in C7.
+For writes, see [event actions](#event-actions-c7).
 These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior remain uncommissioned until the owner tests everything together through Artium.
 
 ## Exception reads (C5)
