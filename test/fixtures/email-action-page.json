@@ -1,0 +1,10 @@
+{
+  "responseEnvelope": {
+    "requestId": "00000000-0000-4000-8000-000000000006",
+    "responseCode": 0,
+    "recordsNumber": 1,
+    "totalRecordsNumber": 1,
+    "scrollId": ""
+  },
+  "responseData": [{ "entityId": "synthetic-email-1", "taskId": "123456" }]
+}

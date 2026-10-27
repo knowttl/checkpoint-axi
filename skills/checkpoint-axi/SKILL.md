@@ -61,6 +61,8 @@ Undocumented exception response shapes are preserved as JSON values and marked r
 | `npx -y @knowttl/checkpoint-axi auth status` | Validate the selected local profile and secret source without API calls |
 | `npx -y @knowttl/checkpoint-axi config path` | Show config and state paths without reading files; --profile does not affect paths |
 | `npx -y @knowttl/checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
+| `npx -y @knowttl/checkpoint-axi email quarantine` | Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30) |
+| `npx -y @knowttl/checkpoint-axi email restore` | Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30) |
 | `npx -y @knowttl/checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
 | `npx -y @knowttl/checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
 | `npx -y @knowttl/checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |

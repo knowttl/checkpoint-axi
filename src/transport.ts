@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { REGIONS } from "./regions.js";
 import type { SelectedProfile } from "./profiles.js";
 import type { SecretRedactor } from "./redact.js";
+import { consumeWriteAuthorization, type WriteAuthorization } from "./writes.js";
 
 export const READ_LIMITS = { requests: 10, rows: 1_000, milliseconds: 60_000, bytes: 8 * 1024 * 1024 } as const;
 export type ExceptionPath = `/exceptions/${"whitelist" | "blacklist" | "spam_whitelist"}${"" | `/${string}`}`
@@ -67,7 +68,7 @@ function tokenFrom(value: unknown, redactor: SecretRedactor): string {
   return [...tokens][0]!;
 }
 
-export function gateway(profile: SelectedProfile, credentials: { clientId: string; clientSecret: string }, redactor: SecretRedactor, dependencies: Dependencies = {}) {
+export function gateway(profile: SelectedProfile, credentials: { clientId: string; clientSecret: string }, redactor: SecretRedactor, dependencies: Dependencies = {}, mutation = false) {
   const now = dependencies.now ?? Date.now;
   const wait = dependencies.wait ?? delay;
   const deadline = now() + READ_LIMITS.milliseconds;
@@ -86,7 +87,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
   async function send(path: string, body?: unknown, bearer?: string) {
     const remaining = deadline - now();
     if (remaining <= 0) throw failure("TIME_BUDGET", "Read time budget exhausted");
-    if (++requests > READ_LIMITS.requests) throw failure("REQUEST_BUDGET", "Read request budget exhausted");
+    if (++requests > (mutation ? 44 : READ_LIMITS.requests)) throw failure("REQUEST_BUDGET", "Request budget exhausted");
     const payload = body === undefined ? undefined : JSON.stringify(body);
     if (bearer) redactor.add(`Bearer ${bearer}`);
     return new Promise<{ status: number; retryAfter?: string; value: unknown }>((resolve, reject) => {
@@ -157,5 +158,23 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
       return decodePage(response.value, /^\/(sectools|sectool-exceptions)\//.test(query.path));
     }
   }
-  return { authenticate, read };
+  // Closed entity-action route; mutations never enter the read retry loop.
+  async function emailAction(authorization: WriteAuthorization, action: "quarantine" | "restore", targets: readonly string[]): Promise<Page> {
+    if (!mutation || !consumeWriteAuthorization(authorization, `email.${action}`, targets, profile.name, profile.region)) {
+      throw failure("WRITES_DISABLED", "A one-use coordinator authorization is required");
+    }
+    await authenticate();
+    try {
+      const response = await send("/app/hec-api/v1.0/action/entity", { requestData: {
+        entityIds: targets, entityActionName: [action], entityActionParam: [""],
+      } }, token);
+      if (response.status < 200 || response.status >= 300) throw new Error("Action response requires reconciliation");
+      return decodePage(response.value);
+    } catch {
+      throw new AxiError("Email action outcome is unknown; never replay automatically", "OUTCOME_UNKNOWN", [
+        "Inspect the write journal and read back every target before deciding what to do next",
+      ]);
+    }
+  }
+  return { authenticate, read, emailAction };
 }

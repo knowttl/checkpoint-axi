@@ -1,8 +1,8 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C5 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads and exception reads.
-Downloads, remote writes and Artium integration arrive in later slices.
+Slices C1-C6 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads and gated email quarantine/restore.
+Downloads, other writes and Artium integration arrive in later slices.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
 ## Local use
@@ -28,6 +28,8 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 | `checkpoint-axi auth status` | Validate the selected local profile and secret source without API calls |
 | `checkpoint-axi config path` | Show config and state paths without reading files; --profile does not affect paths |
 | `checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
+| `checkpoint-axi email quarantine` | Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30) |
+| `checkpoint-axi email restore` | Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30) |
 | `checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
 | `checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
 | `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
@@ -82,7 +84,8 @@ An env profile requires `CHECKPOINT_AXI_REGION`, `CHECKPOINT_AXI_CLIENT_ID` and 
 File-selected metadata never mixes with env-profile fields, though an explicit SecretRef can name an environment variable.
 Environment profiles always disable writes and downloads.
 `CHECKPOINT_AXI_READ_ONLY` accepts `1`/`true` or `0`/`false` case-insensitively; any other value fails closed.
-`CHECKPOINT_AXI_WRITE_LOG` reserves the later write-journal path override; no journal is created yet.
+`CHECKPOINT_AXI_WRITE_LOG` overrides the write journal, defaulting to `writes.log` in the platform state directory.
+An empty override uses that default.
 
 POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
 Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
@@ -167,6 +170,43 @@ No paging request parameter is documented for these GET routes, so each command 
 Truncation, nonempty scroll metadata or a larger advertised total returns `complete: false` and an explanation; there is no exception continuation cursor.
 Anti-Phishing list/detail requests share a 1 request/second spacer; all other exception routes share a 10 requests/second spacer within each invocation, including retries and reauthentication replays.
 Text is redacted before 500-character previews; `--full` restores complete strings, and `--fields` selects top-level output fields.
+
+## Email writes (C6)
+
+`checkpoint-axi email quarantine --ids <id1>,<id2>` and `email restore --ids <id1>,<id2>` preview asynchronous email actions (guide pages 28-30).
+The selected file profile must opt in with `writes: { "allowWrites": true, "operations": ["email.quarantine", "email.restore"] }`, listing only the exact operations it needs.
+Wildcards never grant scope, environment-only profiles cannot write, and `CHECKPOINT_AXI_READ_ONLY` always wins.
+These gates apply to previews too.
+Supply 1-20 unique entity IDs, comma-separated without spaces.
+Previews read each entity, verify its identity and email type, check the available action and show current state.
+An explicit `--dry-run` also previews and cannot combine with `--execute`.
+
+Every action is disruptive and requires `--execute` plus exact confirmation containing the operation, a space and every supplied ID in order:
+
+```sh
+checkpoint-axi email restore --ids synthetic-email-1 --execute --confirm 'email.restore synthetic-email-1'
+```
+
+Already quarantined or explicitly restored emails are no-ops; a mixed batch sends only targets still needing the action after re-read.
+The confirmation still names the full requested batch.
+Before sending, the coordinator records and syncs a redacted JSON-lines `kind: intent` record with `auditId`, operation, profile, region and targets.
+It re-reads every target, checks the profile has not changed, and sends at most one action request.
+Previews and initial no-ops create no journal.
+The journal and its lock must be private regular files in a private directory; symlinks, hard-linked journals, insecure modes, an incomplete journal or an existing lock block execution.
+POSIX files are created with mode 0600 and the directory with 0700.
+On Windows, newly created files and the journal directory receive protected DACLs granting FullControl only to the current user, SYSTEM and Administrators; existing paths must already satisfy this policy.
+No headers, message bodies, credentials or tokens enter the journal.
+An intent-recording failure returns `INTENT_NOT_RECORDED` before sending.
+An outcome-recording failure returns `OUTCOME_NOT_RECORDED` and requires reconciliation.
+
+Successful submission returns `outcome: accepted`, `auditId` and per-entity `tasks` containing `entityId`, `taskId` and `outcome: accepted`.
+Use `checkpoint-axi task show <taskId>` to inspect execution; submission does not establish that an email was changed.
+Action requests never retry, including on 401 or 429, and never follow redirects.
+A disconnected, invalid, incomplete or otherwise unsuccessful acknowledgement returns `OUTCOME_UNKNOWN` with its audit ID.
+Read back every target and reconcile the journal before any further action; never replay automatically.
+Write sessions retain the 60-second and 8 MiB limits and allow at most 44 HTTP requests for two 20-target preflights, one send, authentication and one read reauthentication.
+The API offers no conditional entity-action request, so re-reading cannot prevent a concurrent server-side change after preflight.
+All C6 verification is offline and synthetic; live action behavior, auth shape and token lifetime remain unverified until owner commissioning through Artium.
 
 ## Agent discovery
 

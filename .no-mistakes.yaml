@@ -39,7 +39,8 @@ review:
       instructions: |
         Fixed region map, HTTPS, TLS verification and redirect:error only. No caller-supplied origins.
         Bound reads and cursors; POST searches are reads. Never replay writes.
-        Tokens stay in memory, secret-derived strings are redacted before use, and 401 permits one re-exchange per run.
+        Tokens stay in memory, secret-derived strings are redacted before use, and read 401 permits one re-exchange per run.
+        Entity actions require a one-use coordinator authorization; write 401 and 429 never retry or reauthenticate.
         Auth response shape is uncommissioned; reject ambiguous shapes without rendering payloads.
         Auth, retries and delays share the request, byte and time budgets; read 429 retries stop at two.
     - path: "src/**/doctor*"
@@ -67,6 +68,9 @@ review:
       instructions: |
         Require configured operation scope, preview, explicit execution, exact confirmation and durable intent before send.
         READ_ONLY wins. Never retry ambiguous outcomes. Refuse the six uncommissioned deletes with ENDPOINT_UNVERIFIED.
+        Email actions cap at 20 targets, validate entity identity and available actions, and re-read before one send.
+        Submission reports accepted with per-entity task IDs, never completed; malformed acknowledgements require reconciliation.
+        Journal intent must be redacted, private and durable before send; outcome failures must preserve reconciliation guidance.
     - path: "src/**/download*"
       instructions: |
         Require profile opt-in and a new 0600 output file, never stdout; cap at 50 MiB and verify x-av-sha256.

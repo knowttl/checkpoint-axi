@@ -19,8 +19,19 @@ const paging = {
 };
 const exceptionType = `Required for ${["malware", "url", "dlp"].map((kind) => `${kind}: ${exceptionFamilies[kind as "malware" | "url" | "dlp"].types.join(",")}`).join("; ")}`;
 
+const writeFlags = { ...common,
+  ids: "Required comma-separated unique entity IDs; maximum 20",
+  execute: "Send once after all write gates; default false (preview)",
+  "dry-run": "Explicit preview; cannot combine with --execute",
+  confirm: "Exact operation followed by a space and the comma-separated IDs in supplied order",
+};
+
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
+  "email quarantine": { description: "Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30)", flags: writeFlags,
+    examples: ["checkpoint-axi email quarantine --ids <id>", "checkpoint-axi email quarantine --ids <id> --execute --confirm 'email.quarantine <id>'"] },
+  "email restore": { description: "Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30)", flags: writeFlags,
+    examples: ["checkpoint-axi email restore --ids <id>", "checkpoint-axi email restore --ids <id> --execute --confirm 'email.restore <id>'"] },
   "exception list": { description: "List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123)",
     flags: { ...common, type: exceptionType,
       items: "Click-time item routes instead of list routes; default false", limit: paging.limit, all: "Return up to 1000 rows within transport budgets; no server continuation parameter is documented" },

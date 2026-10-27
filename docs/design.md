@@ -1,7 +1,7 @@
 # Design and delivery boundaries
 
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
-C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads.
+C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads; C6 adds the write coordinator and email quarantine/restore.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
 The source is the [Email Security API Reference Guide, 23 October 2026](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf).
 `inventory/specs.json` pins its URL, SHA-256, byte length and page count.
@@ -39,7 +39,7 @@ Search limits, page replay limitations, completion status and output previews ar
 Exception requests are spaced at 1 request/second for Anti-Phishing and 10 requests/second otherwise.
 Reads retry 429 at most twice, respecting `Retry-After`; writes never retry.
 
-The future write coordinator requires configured `allowWrites` and exact operation scope, preview, `--execute`, exact confirmation naming every target, and durable redacted intent before a single send.
+The C6 write coordinator requires configured `allowWrites` and exact operation scope, preview, `--execute`, exact confirmation naming every target, and durable redacted intent before a single send.
 `CHECKPOINT_AXI_READ_ONLY` overrides configured write permission.
 Target batches stop at 20; ambiguous outcomes report `OUTCOME_UNKNOWN` and are never replayed.
 Entity/event actions return `accepted` and `taskId`, since execution is asynchronous.
@@ -54,7 +54,7 @@ Hosted downloads will reuse Artium's artifact mechanism in C12.
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read and C5 exception-read capabilities.
+Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read, C5 exception-read and C6 email-write capabilities.
 Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
@@ -66,7 +66,7 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 | `task show` | 30-33 | C4 | read | Shipped in C4; GET task status and per-action details for asynchronous actions. |
 | `legacy exception reads` | 49-55 | C5 | read | Shipped in C5 through phishing-allow and phishing-block list/show; same whitelist/blacklist routes. |
 | `exception list and show for eight kinds` | 55-131 | C5 | read | Shipped in C5; documented family/item reads; anomaly show refuses ENDPOINT_UNVERIFIED pending response identity commissioning. |
-| `email quarantine and restore` | 28-30 | C6 | write | POST action/entity through the common write coordinator. |
+| `email quarantine and restore` | 28-30 | C6 | write | Shipped in C6; POST action/entity through the gated coordinator with durable intent, exact confirmation, re-read and no retry. |
 | `event action` | 42-45 | C7 | write | POST action/event validated against availableEventActions. |
 | `phishing create update remove` | 61-69 | C8 | write | Anti-Phishing allow and block CRUD with explicit scope. |
 | `spam create update remove` | 75-83 | C8 | write | Spam allow-list CRUD with explicit scope. |

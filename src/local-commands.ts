@@ -6,6 +6,7 @@ import { credentialStore } from "./profiles.js";
 import { doctor } from "./doctor.js";
 import { readCommand } from "./reads.js";
 import { exceptionCommand } from "./exceptions.js";
+import { emailWriteCommand } from "./writes.js";
 import type { gateway } from "./transport.js";
 
 export async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
@@ -30,7 +31,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (flag === "--help" || flag === "--full" || flag === "--all" || flag === "--items") flags.set(flag, "true");
+    if (["--help", "--full", "--all", "--items", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -43,11 +44,14 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     : name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];
+  const isWrite = name === "email quarantine" || name === "email restore";
+  if (isWrite) available.splice(0, available.length, "outcome", "preview", "auditId", "tasks", "help");
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (name === "exception list" || name === "exception show") result = await exceptionCommand(name, kind, entityId, flags, store, transport);
+  if (name === "email quarantine" || name === "email restore") result = await emailWriteCommand(name, flags, store, transport);
+  else if (name === "exception list" || name === "exception show") result = await exceptionCommand(name, kind, entityId, flags, store, transport);
   else if (name === "email search" || name === "email show" || name === "event list" || name === "event show" || name === "task show") result = await readCommand(name, entityId, flags, store, transport);
   else if (name === "doctor") result = await doctor(store, config, flags.get("--profile"), flags.get("--saas"), transport);
   else if (name === "auth status") result = store.status(config, flags.get("--profile"));
