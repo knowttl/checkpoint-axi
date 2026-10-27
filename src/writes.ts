@@ -94,7 +94,7 @@ export async function coordinateWrite(args: {
   operation: string; targets: readonly string[]; flags: Flags; store: Store; scope: { profile: string; region: string };
   checkScope: () => void;
   readState: () => Promise<{ noop: boolean; state: unknown }>;
-  send: (authorization: WriteAuthorization) => Promise<Record<string, unknown>>;
+  send: (authorization: WriteAuthorization, checkScopeBeforeSend: () => void) => Promise<Record<string, unknown>>;
 }): Promise<Record<string, unknown>> {
   const { operation, targets, flags, store, checkScope, readState, send } = args;
   if (!targets.length || targets.length > 20 || new Set(targets).size !== targets.length) fail("VALIDATION_ERROR", "Supply 1-20 unique targets");
@@ -122,8 +122,16 @@ export async function coordinateWrite(args: {
   const authorization: WriteAuthorization = Object.freeze({ operation, targets: Object.freeze([...targets]), ...args.scope });
   authorizations.add(authorization);
   let result: Record<string, unknown>;
-  try { result = await send(authorization); }
-  catch {
+  let scopeRevoked = false;
+  try { result = await send(authorization, () => {
+    try { checkScope(); }
+    catch (error) { scopeRevoked = true; throw error; }
+  }); }
+  catch (error) {
+    if (scopeRevoked) {
+      record({ ...meta, kind: "outcome", outcome: "NOT_SENT" });
+      throw error;
+    }
     record({ ...meta, kind: "outcome", outcome: "OUTCOME_UNKNOWN" });
     return fail("OUTCOME_UNKNOWN", "Action outcome is unknown; never replay automatically", [
       `Audit ID: ${auditId}`, "Inspect the write journal and read back every target before deciding what to do next",

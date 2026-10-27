@@ -19,3 +19,6 @@ Do not copy the guide's sample identifiers, domains or malformed JSON responses.
 `event-action-page.json` derives event/entity/task acknowledgements from the schemas on guide pages 44-45 with invented IDs.
 Event-action tests derive parameterized variants from the schema on pages 35-37, and name-only requests from the body schema on page 43.
 They test refusal of uncommissioned parameter serialization, not an assumed object-to-string conversion.
+`exception-write.json` derives request fields and boolean types from guide pages 62-66 and 76-80, using invented content and a reserved example address.
+`exception-write-page.json` derives the envelope-only acknowledgement from pages 63-64, 67, 77-78 and 80-82.
+Exception-write tests derive bodyless removal and envelope code 204 from pages 67-69 and 81-82, rather than copying sample identifiers.

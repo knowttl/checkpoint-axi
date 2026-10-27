@@ -98,20 +98,20 @@
       "pages": "61-69",
       "slice": "C8",
       "disposition": "write",
-      "reason": "Anti-Phishing allow and block CRUD with explicit scope.",
+      "reason": "Shipped in C8; gated allow/block create, PUT replacement and bodyless POST remove with exact scope and confirmation.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "spam create update remove",
       "pages": "75-83",
       "slice": "C8",
       "disposition": "write",
-      "reason": "Spam allow-list CRUD with explicit scope.",
+      "reason": "Shipped in C8; gated allow-list create, PUT replacement and bodyless POST remove with exact scope and confirmation.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "anomaly create remove",

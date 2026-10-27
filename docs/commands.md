@@ -212,6 +212,27 @@ checkpoint-axi event show <id>
 checkpoint-axi event show <id> --full
 ```
 
+## exception create
+
+Preview or create one phishing-allow, phishing-block or spam-allow exception (guide pages 61-64, 75-78)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--execute` | Send once after all write gates; default false (preview) |
+| `--dry-run` | Explicit preview; cannot combine with --execute |
+| `--confirm` | Exact operation followed by a space and the target from preview (payload sha256 for create, exception ID otherwise) |
+| `--input` | Required absolute private JSON file containing documented requestData fields directly; at least one matching criterion; update sends a replacement PUT |
+
+```sh
+checkpoint-axi exception create phishing-allow --input /absolute/rule.json
+checkpoint-axi exception create spam-allow --input /absolute/rule.json --execute --confirm 'exception.spam-allow.create sha256:<preview-digest>'
+```
+
 ## exception list
 
 List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123)
@@ -234,6 +255,26 @@ checkpoint-axi exception list malware --type hash
 checkpoint-axi exception list click-time --items --all
 ```
 
+## exception remove
+
+Preview or remove one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 67-69, 81-82)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--execute` | Send once after all write gates; default false (preview) |
+| `--dry-run` | Explicit preview; cannot combine with --execute |
+| `--confirm` | Exact operation followed by a space and the target from preview (payload sha256 for create, exception ID otherwise) |
+
+```sh
+checkpoint-axi exception remove phishing-allow <id>
+checkpoint-axi exception remove spam-allow <id> --execute --confirm 'exception.spam-allow.remove <id>'
+```
+
 ## exception show
 
 Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123)
@@ -252,6 +293,27 @@ Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pend
 checkpoint-axi exception show phishing-block <id>
 checkpoint-axi exception show url <value> --type allow-url
 checkpoint-axi exception show click-time <id> --items --full
+```
+
+## exception update
+
+Preview or replace one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 64-67, 78-81)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--execute` | Send once after all write gates; default false (preview) |
+| `--dry-run` | Explicit preview; cannot combine with --execute |
+| `--confirm` | Exact operation followed by a space and the target from preview (payload sha256 for create, exception ID otherwise) |
+| `--input` | Required absolute private JSON file containing documented requestData fields directly; at least one matching criterion; update sends a replacement PUT |
+
+```sh
+checkpoint-axi exception update phishing-block <id> --input /absolute/rule.json
+checkpoint-axi exception update spam-allow <id> --input /absolute/rule.json --execute --confirm 'exception.spam-allow.update <id>'
 ```
 
 ## home

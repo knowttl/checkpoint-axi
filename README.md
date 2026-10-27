@@ -1,7 +1,7 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C7 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore and name-only event actions.
+Slices C1-C8 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions and Anti-Phishing/Spam exception writes.
 Downloads, other writes and Artium integration arrive in later slices.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
@@ -35,8 +35,11 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 | `checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
 | `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
 | `checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
+| `checkpoint-axi exception create` | Preview or create one phishing-allow, phishing-block or spam-allow exception (guide pages 61-64, 75-78) |
 | `checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
+| `checkpoint-axi exception remove` | Preview or remove one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 67-69, 81-82) |
 | `checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
+| `checkpoint-axi exception update` | Preview or replace one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 64-67, 78-81) |
 | `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 | `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
@@ -125,7 +128,7 @@ TLS certificate verification stays enabled and redirects are refused.
 Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
 Both are bounded by 8 MiB of response bytes and 60 seconds, including auth, re-exchange, read retries and delays.
 Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` within that budget.
-Exception reads use separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
+Exception reads and writes share separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
 
 ## Email reads (C3)
 
@@ -221,6 +224,56 @@ A disconnected, invalid, incomplete or otherwise unsuccessful acknowledgement re
 Read back every target and reconcile the journal before any further action; never replay automatically.
 Write preflights, authentication and the action share the [transport limits](#doctor-and-commissioning); read retries also consume that budget.
 All C6 verification is offline and synthetic; live action behavior, auth shape and token lifetime remain unverified until owner commissioning through Artium.
+
+## Anti-Phishing and Spam writes (C8)
+
+`exception create <kind>`, `exception update <kind> <id>` and `exception remove <kind> <id>` support `phishing-allow`, `phishing-block` and `spam-allow` (guide pages 61-69, 75-83).
+Every command uses the C6 coordinator, including previews: the selected file profile needs `writes.allowWrites: true` and the exact operation `exception.<kind>.<create|update|remove>`.
+`CHECKPOINT_AXI_READ_ONLY` always wins.
+Each invocation targets one rule; update/remove require its exception ID.
+Create/update require `--input /absolute/rule.json`, a private regular JSON file (POSIX mode 0600; Windows protected DACL) containing the documented `requestData` fields directly, without an envelope:
+
+```json
+{
+  "senderEmail": "sender@example.com",
+  "senderEmailMatching": "contains",
+  "subject": "Synthetic exception",
+  "subjectMatching": "contains",
+  "comment": "Synthetic rule",
+  "ignoringSpfCheck": false
+}
+```
+
+Allowed string fields are `entityId`, `attachmentMd5`, `senderEmail`, `senderName`, `recipient`, `senderClientIp`, `senderDomain`, `senderIp`, `linkDomains`, `subject`, `comment`, `actionNeeded`, `subjectMatching`, `linkDomainMatching`, `senderNameMatching`, `senderDomainMatching`, `senderEmailMatching` and `recipientMatching`.
+`ignoringSpfCheck` is boolean, following the parameter tables rather than the guide's string-boolean examples.
+At least one nonempty matching criterion is required; metadata or matching operators alone cannot create a rule.
+Unknown fields and a supplied update `entityId` that differs from the positional ID are rejected before authentication.
+Update sends the supplied fields as a replacement PUT, so supply the complete intended rule rather than a partial patch.
+Remove sends a bodyless POST to the documented delete route.
+
+```sh
+checkpoint-axi exception create phishing-allow --input /absolute/rule.json
+checkpoint-axi exception update spam-allow synthetic-exception-1 --input /absolute/rule.json
+checkpoint-axi exception remove phishing-block synthetic-exception-1
+```
+
+Commands preview by default; `--dry-run` makes that explicit.
+Inspect the requested rule and current state, then repeat with `--execute` and the exact `--confirm` emitted by the preview.
+Create confirmation is `exception.<kind>.create sha256:<digest>`, binding the canonical payload; update/remove confirmation is `exception.<kind>.<action> <id>`.
+Create reads a complete bounded list to detect an identical rule; incomplete lists refuse execution because no continuation parameter is documented.
+Update/remove validate one matching detail response or an empty result; an absent update returns `NOT_FOUND`.
+Identical creates/replacements and absent removals detected on the initial read are no-ops without confirmation, a journal or a send.
+If the final read detects a no-op, the command returns `outcome: noop` with `auditId` and records `NOT_SENT` in the journal.
+After exact confirmation, durable redacted intent precedes a final state read, profile check and single send.
+The journal contains operation/target metadata, never the JSON payload.
+Preflight reads and the mutation share the exception rate spacer and the write transport budgets.
+
+Successful envelopes return `outcome: accepted` and `auditId`; these exception endpoints provide no task ID or created ID.
+Use `exception list <kind>` after create or `exception show <kind> <id>` after update/remove to reconcile.
+The remove acknowledgement also accepts the guide's envelope code 204.
+HTTP errors, redirects, disconnections and invalid acknowledgements become `OUTCOME_UNKNOWN`, without retries or token re-exchange.
+Reconcile before any further action and never replay automatically.
+All C8 verification uses offline synthetic fixtures; live exception behavior, auth shape and token lifetime remain unverified until owner commissioning through Artium.
 
 ## Agent discovery
 

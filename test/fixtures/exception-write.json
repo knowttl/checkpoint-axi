@@ -1,0 +1,6 @@
+{
+  "senderEmail": "sender@example.com",
+  "subject": "Synthetic exception",
+  "comment": "Synthetic rule",
+  "ignoringSpfCheck": false
+}
