@@ -188,6 +188,20 @@ test.each(["json", "envelope", "empty"])("C9 preserves successful unverified ack
   if (shape === "json") expect(result.output).toContain("truncated, 600 chars total");
 });
 
+test.each(cases)("$kind $action truncated acknowledgement guides reconciliation without replay", async (entry) => {
+  const cli = await setup(entry, (_request, response) => {
+    response.end(JSON.stringify({ detail: "x".repeat(600) }));
+  });
+  const preview = await cli.run(cli.args);
+  const result = await cli.run([...cli.args, "--execute", "--confirm", preview.data.preview.confirm]);
+  expect(result.code).toBe(0);
+  expect(result.data.response.detail).toBe(`${"x".repeat(500)}... (truncated, 600 chars total)`);
+  expect(result.data.help).toEqual([
+    `Run checkpoint-axi exception list ${entry.kind}${entry.kind === "click-time" ? " --items" : ""} to inspect unverified JSON and reconcile; never replay automatically`,
+  ]);
+  expect(cli.requests).toHaveLength(2);
+});
+
 test("C9 transport rejects a forged authorization before auth", async () => {
   const cli = await setup();
   const store = credentialStore(cli.local.context), profile = store.select(store.load().config);

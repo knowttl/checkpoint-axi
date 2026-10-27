@@ -318,7 +318,8 @@ Execution requires `--execute` and the preview's exact `--confirm`, even if a ta
 Create confirms the complete private payload SHA-256; other commands confirm every caller-supplied ID in order.
 Durable redacted intent and final configuration/scope checks precede one send; requests never retry or reauthenticate after a mutation response.
 The journal holds metadata only, never input or response bodies.
-Successful HTTP status and any supplied successful response envelope return outcome: accepted, auditId, responseSchema: unverified and the bounded raw JSON response, redacted before the usual 500-character string previews (`--full` for full strings).
+Successful HTTP status and any supplied successful response envelope return outcome: accepted, auditId, responseSchema: unverified and the bounded raw JSON response, redacted before the usual 500-character string previews.
+Never repeat a mutation to retrieve truncated strings; use read-only list or item commands to reconcile.
 An empty HTTP 204 is represented as response: null.
 No created ID, task ID or count is derived; reconcile using list or item reads, whose response identities also remain unverified.
 

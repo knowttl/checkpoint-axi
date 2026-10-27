@@ -90,6 +90,6 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   };
   const projected = Object.fromEntries(fields.filter((field) => result[field] !== undefined).map((field) => [field,
     field === "cursor" ? result[field] : preview(store.redactor.value(result[field]))])) as Record<string, unknown>;
-  if (truncated) projected.help = [...(Array.isArray(projected.help) ? projected.help : []), "Repeat the command with --full to see complete strings"];
+  if (truncated && !isWrite) projected.help = [...(Array.isArray(projected.help) ? projected.help : []), "Repeat the command with --full to see complete strings"];
   return projected;
 }
