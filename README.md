@@ -107,7 +107,8 @@ Unsupported, conflicting or invalid values fail with `AUTH_SHAPE_UNVERIFIED`, re
 Tokens stay in memory, are never cached to disk, and are exchanged once per invocation with at most one re-exchange on an API 401.
 All requests carry a new request UUID; authenticated API calls carry Bearer authorization.
 TLS certificate verification stays enabled and redirects are refused.
-The entire invocation is bounded by 10 HTTP requests, 8 MiB of response bytes and 60 seconds, including auth, re-exchange, retries and delays.
+Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
+Both are bounded by 8 MiB of response bytes and 60 seconds, including auth, re-exchange, read retries and delays.
 Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` within that budget.
 Exception reads use separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
 

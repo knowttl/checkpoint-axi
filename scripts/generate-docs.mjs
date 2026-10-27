@@ -26,7 +26,7 @@ ${generated}
 # checkpoint-axi
 
 ${DESCRIPTION}.
-C1-C5 ship local discovery, a live doctor and email, event, task and exception reads; downloads, writes and Artium integration arrive in later slices.
+C1-C6 ship local discovery, a live doctor, email, event, task and exception reads, and gated email quarantine and restore; downloads, other writes and Artium integration arrive in later slices.
 Use \`npx -y @knowttl/checkpoint-axi\` after publication without a global install.
 Bare \`--version\`, \`-v\` and \`-V\` print the package version.
 
@@ -53,7 +53,8 @@ Use --saas to override the profile SaaS for doctor, email search or event list; 
 The owner commissions all slices together through Artium after the full build; only a pass/fail note enters the repository.
 AUTH_SHAPE_UNVERIFIED requires commissioning of the undocumented token response shape (guide page 8).
 Tokens stay in memory; verified TLS and the fixed region map are mandatory.
-Every invocation is bounded by 10 HTTP requests, 8 MiB and 60 seconds including auth and retries.
+Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
+Both are bounded by 8 MiB and 60 seconds including auth and read retries.
 Email search defaults to 50 compact rows and a 24-hour window; --start-date and --end-date require ISO timestamps with timezones and a positive window of at most 31 days (guide pages 18-27).
 Use --limit <1-1000> or --all, which caps output at 1000 rows within the shared transport budget.
 Use --saas-entity for an entity type or --filter for a JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20).
