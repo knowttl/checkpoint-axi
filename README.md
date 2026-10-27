@@ -1,7 +1,7 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C8 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions and Anti-Phishing/Spam exception writes.
+Slices C1-C9 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions, Anti-Phishing/Spam exception writes and anomaly/click-time item writes.
 Downloads, other writes and Artium integration arrive in later slices.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
@@ -35,11 +35,13 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 | `checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
 | `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
 | `checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
-| `checkpoint-axi exception create` | Preview or create one phishing-allow, phishing-block or spam-allow exception (guide pages 61-64, 75-78) |
+| `checkpoint-axi exception clear` | Refuse click-time clear with ENDPOINT_UNVERIFIED until commissioning provides a trustworthy pre-read count (guide pages 87-88, 96-97) |
+| `checkpoint-axi exception create` | Preview or create one phishing-allow, phishing-block, spam-allow, anomaly or click-time exception; C9 response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93) |
 | `checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
-| `checkpoint-axi exception remove` | Preview or remove one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 67-69, 81-82) |
+| `checkpoint-axi exception remove` | Preview or remove one phishing-allow, phishing-block, spam-allow, anomaly rule or click-time item by ID (guide pages 67-69, 81-82, 85-87, 98-99) |
+| `checkpoint-axi exception remove-items` | Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98) |
 | `checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
-| `checkpoint-axi exception update` | Preview or replace one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 64-67, 78-81) |
+| `checkpoint-axi exception update` | Preview or replace one phishing-allow, phishing-block, spam-allow or click-time exception by ID; click-time is single-item only (guide pages 64-67, 78-81, 94-96) |
 | `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 | `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
@@ -274,6 +276,56 @@ The remove acknowledgement also accepts the guide's envelope code 204.
 HTTP errors, redirects, disconnections and invalid acknowledgements become `OUTCOME_UNKNOWN`, without retries or token re-exchange.
 Reconcile before any further action and never replay automatically.
 All C8 verification uses offline synthetic fixtures; live exception behavior, auth shape and token lifetime remain unverified until owner commissioning through Artium.
+
+## Anomaly and click-time writes (C9)
+
+`exception create anomaly`, `exception remove anomaly <rule-id>`, `exception create click-time`, `exception update click-time <item-id>`, `exception remove click-time <item-id>` and `exception remove-items click-time --ids <id1>,<id2>` implement the documented requests on guide pages 84-99.
+Every operation uses the C6 coordinator and requires configured writes.allowWrites, exact operation scope `exception.<kind>.<action>` and no forced read-only override, including for previews.
+Create and update read a private absolute `--input` JSON file containing the requestData fields directly, without an envelope.
+Anomaly create accepts `addedBy` and `requestJson` with `whitelist-option:new_country`, `apply-to-past` (`Yes` or `No`), `anomaly-comment` and `event_id`:
+
+```json
+{
+  "addedBy": "",
+  "requestJson": {
+    "whitelist-option:new_country": "synthetic-country-1",
+    "apply-to-past": "Yes",
+    "anomaly-comment": "Synthetic rule",
+    "event_id": "synthetic-event-1"
+  }
+}
+```
+
+Click-time create accepts `listItemName`, `listId` and `createdBy`; update additionally requires `listItemId` matching the positional item ID:
+
+```json
+{
+  "listItemName": "https://example.com/path",
+  "listId": "synthetic-list-1",
+  "createdBy": ""
+}
+```
+
+IDs contain 1-256 letters, digits, underscores or hyphens; remove-items requires 1-20 unique IDs.
+Unknown fields fail before authentication.
+Anomaly create/remove share a POST route, distinguished by their documented request bodies; remove sends `{ "requestData": { "ruleId": "<rule-id>" } }`.
+Click-time create and remove-items share POST items, distinguished by create fields or listItemIds; update sends PUT items/{item_id}, and remove sends a bodyless POST items/{item_id}.
+Collection PUT items (pages 93-94) is deferred until commissioning; update requires one positional item ID.
+
+The guide does not document response schemas for anomaly/click-time reads or acknowledgements.
+C9 previews explicitly show targetState: unverified and do not infer existence, identity or no-op state from arbitrary JSON.
+Execution requires `--execute` and the preview's exact `--confirm`, even if a target might already be absent or a rule already exists.
+Create confirms the complete private payload SHA-256; other commands confirm every caller-supplied ID in order.
+Durable redacted intent and final configuration/scope checks precede one send; requests never retry or reauthenticate after a mutation response.
+The journal holds metadata only, never input or response bodies.
+Successful HTTP status and any supplied successful response envelope return outcome: accepted, auditId, responseSchema: unverified and the bounded raw JSON response, redacted before the usual 500-character string previews.
+Never repeat a mutation to retrieve truncated strings; use read-only list or item commands to reconcile.
+An empty HTTP 204 is represented as response: null.
+No created ID, task ID or count is derived; reconcile using list or item reads, whose response identities also remain unverified.
+
+`exception clear click-time` refuses ENDPOINT_UNVERIFIED before authentication, including previews: the required freshly read count cannot be trusted from an undocumented list shape (pages 87-88, 96-97).
+Clear, collection PUT, response identities, existence/no-op detection and acknowledgement shapes remain live-commissioning follow-ups through Artium.
+All tests are offline and synthetic; no live behavior or token lifetime has been commissioned.
 
 ## Agent discovery
 

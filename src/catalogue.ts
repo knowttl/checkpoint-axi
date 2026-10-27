@@ -26,20 +26,26 @@ const writeFlags = { ...common,
   confirm: "Exact operation followed by a space and the comma-separated IDs in supplied order",
 };
 const exceptionWriteFlags = { ...common, execute: writeFlags.execute, "dry-run": writeFlags["dry-run"],
-  confirm: "Exact operation followed by a space and the target from preview (payload sha256 for create, exception ID otherwise)" };
-const input = "Required absolute private JSON file containing documented requestData fields directly; at least one matching criterion; update sends a replacement PUT";
+  confirm: "Exact operation followed by a space and every target from preview (payload sha256 for create, exception ID or comma-separated item IDs otherwise)" };
+const input = "Required absolute private JSON file containing documented requestData fields directly; fields depend on kind; update sends a replacement PUT";
 
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
-  "exception create": { description: "Preview or create one phishing-allow, phishing-block or spam-allow exception (guide pages 61-64, 75-78)",
+  "exception create": { description: "Preview or create one phishing-allow, phishing-block, spam-allow, anomaly or click-time exception; C9 response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93)",
     flags: { ...exceptionWriteFlags, input },
     examples: ["checkpoint-axi exception create phishing-allow --input /absolute/rule.json", "checkpoint-axi exception create spam-allow --input /absolute/rule.json --execute --confirm 'exception.spam-allow.create sha256:<preview-digest>'"] },
-  "exception update": { description: "Preview or replace one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 64-67, 78-81)",
+  "exception update": { description: "Preview or replace one phishing-allow, phishing-block, spam-allow or click-time exception by ID; click-time is single-item only (guide pages 64-67, 78-81, 94-96)",
     flags: { ...exceptionWriteFlags, input },
     examples: ["checkpoint-axi exception update phishing-block <id> --input /absolute/rule.json", "checkpoint-axi exception update spam-allow <id> --input /absolute/rule.json --execute --confirm 'exception.spam-allow.update <id>'"] },
-  "exception remove": { description: "Preview or remove one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 67-69, 81-82)",
+  "exception remove": { description: "Preview or remove one phishing-allow, phishing-block, spam-allow, anomaly rule or click-time item by ID (guide pages 67-69, 81-82, 85-87, 98-99)",
     flags: exceptionWriteFlags,
     examples: ["checkpoint-axi exception remove phishing-allow <id>", "checkpoint-axi exception remove spam-allow <id> --execute --confirm 'exception.spam-allow.remove <id>'"] },
+  "exception remove-items": { description: "Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98)",
+    flags: { ...exceptionWriteFlags, ids: "Required 1-20 unique comma-separated click-time item IDs" },
+    examples: ["checkpoint-axi exception remove-items click-time --ids <id1>,<id2>", "checkpoint-axi exception remove-items click-time --ids <id1>,<id2> --execute --confirm 'exception.click-time.remove-items <id1>,<id2>'"] },
+  "exception clear": { description: "Refuse click-time clear with ENDPOINT_UNVERIFIED until commissioning provides a trustworthy pre-read count (guide pages 87-88, 96-97)",
+    flags: exceptionWriteFlags,
+    examples: ["checkpoint-axi exception clear click-time", "checkpoint-axi exception clear click-time --dry-run"] },
   "event action": { description: "Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45)",
     flags: { ...writeFlags, ids: "Required comma-separated unique event IDs; maximum 20", name: "Required available action name; nonempty action parameters are unverified" },
     examples: ["checkpoint-axi event action --ids <id> --name dismiss", "checkpoint-axi event action --ids <id> --name dismiss --execute --confirm 'event.action.dismiss <id>'"] },

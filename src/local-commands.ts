@@ -19,7 +19,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   ]); };
   if (!entry) return usage();
   const flags = new Map<string, string>();
-  const isExceptionWrite = name === "exception create" || name === "exception update" || name === "exception remove";
+  const isExceptionWrite = name === "exception create" || name === "exception update" || name === "exception remove" || name === "exception remove-items" || name === "exception clear";
   const isException = name === "exception list" || name === "exception show" || isExceptionWrite;
   const kind = isException && !argv[2]?.startsWith("--") ? argv[2] : undefined;
   const idIndex = isException ? 3 : 2;
@@ -47,12 +47,12 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];
   const isWrite = name === "email quarantine" || name === "email restore" || name === "event action" || isExceptionWrite;
-  if (isWrite) available.splice(0, available.length, "outcome", "preview", "auditId", "tasks", "help");
+  if (isWrite) available.splice(0, available.length, "outcome", "preview", "auditId", "tasks", "response", "responseSchema", "help");
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (name === "exception create" || name === "exception update" || name === "exception remove") result = await exceptionWriteCommand(name, kind, entityId, flags, store, transport);
+  if (name === "exception create" || name === "exception update" || name === "exception remove" || name === "exception remove-items" || name === "exception clear") result = await exceptionWriteCommand(name, kind, entityId, flags, store, transport);
   else if (name === "event action") result = await eventWriteCommand(flags, store, transport);
   else if (name === "email quarantine" || name === "email restore") result = await emailWriteCommand(name, flags, store, transport);
   else if (name === "exception list" || name === "exception show") result = await exceptionCommand(name, kind, entityId, flags, store, transport);
@@ -90,6 +90,6 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   };
   const projected = Object.fromEntries(fields.filter((field) => result[field] !== undefined).map((field) => [field,
     field === "cursor" ? result[field] : preview(store.redactor.value(result[field]))])) as Record<string, unknown>;
-  if (truncated) projected.help = [...(Array.isArray(projected.help) ? projected.help : []), "Repeat the command with --full to see complete strings"];
+  if (truncated && !isWrite) projected.help = [...(Array.isArray(projected.help) ? projected.help : []), "Repeat the command with --full to see complete strings"];
   return projected;
 }

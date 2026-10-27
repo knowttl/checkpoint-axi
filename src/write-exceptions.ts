@@ -7,6 +7,7 @@ import { readPrivateFile } from "./private-file.js";
 import type { credentialStore } from "./profiles.js";
 import { gateway, READ_LIMITS, type ExceptionPath } from "./transport.js";
 import { coordinateWrite } from "./writes.js";
+import { sectoolsWriteCommand, type SectoolsAction } from "./write-sectools.js";
 
 // Request parameter tables, not the contradictory string-boolean samples: guide pp.62-66, 76-80.
 const criteria = { attachmentMd5: z.string(), senderEmail: z.string(), senderName: z.string(), recipient: z.string(),
@@ -19,12 +20,15 @@ const record = z.object({ entityId: z.string().regex(/^[A-Za-z0-9_-]+$/),
   ...Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value.nullish()])) }).passthrough();
 const fail = (code: string, message: string): never => { throw new AxiError(message, code, ["Run checkpoint-axi exception create --help; inspect the preview before execution"]); };
 
-export async function exceptionWriteCommand(name: "exception create" | "exception update" | "exception remove", kind: string | undefined,
+export async function exceptionWriteCommand(name: `exception ${SectoolsAction}`, kind: string | undefined,
   id: string | undefined, flags: Map<string, string>, store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]) {
-  if (kind !== "phishing-allow" && kind !== "phishing-block" && kind !== "spam-allow") {
-    return fail("VALIDATION_ERROR", "Choose phishing-allow, phishing-block or spam-allow for C8 writes");
+  const action = name.slice("exception ".length) as SectoolsAction;
+  if (kind === "anomaly" || kind === "click-time" || action === "remove-items" || action === "clear") {
+    return sectoolsWriteCommand(action, kind ?? "", id, flags, store, transport);
   }
-  const action = name === "exception create" ? "create" : name === "exception update" ? "update" : "remove";
+  if (kind !== "phishing-allow" && kind !== "phishing-block" && kind !== "spam-allow") {
+    return fail("VALIDATION_ERROR", "Choose phishing-allow, phishing-block, spam-allow, anomaly or click-time for exception writes");
+  }
   if (action !== "create" && (!id || !/^[A-Za-z0-9_-]{1,256}$/.test(id))) return fail("VALIDATION_ERROR", "Supply one exception ID containing letters, digits, underscores or hyphens");
   if (flags.has("--execute") && flags.has("--dry-run")) return fail("VALIDATION_ERROR", "--execute cannot combine with --dry-run");
   let data: z.infer<typeof payload> | undefined;

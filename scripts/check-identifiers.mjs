@@ -21,6 +21,8 @@ export function identifierViolations(text) {
     // Source filenames and documented operation identifiers are not DNS names.
     if (/\.(?:md|json|ts|mts|mjs|js|yaml|yml|log|pdf)$/.test(host)
       || /^exception\.(?:phishing-allow|phishing-block|spam-allow)\.(?:create|update|remove)$/.test(host)
+      || /^exception\.anomaly\.(?:create|remove)$/.test(host)
+      || /^exception\.click-time\.(?:create|update|remove|remove-items|clear)$/.test(host)
       || ["email.quarantine", "email.restore", "event.action", "event.action.dismiss", "writes.allowwrites", "downloads.allow", "entitypayload.subject"].includes(host)) continue;
     if (!publicHosts.has(host) && !/(^|\.)(example\.(com|net|org)|test|invalid|example)$/.test(host)) violations.push("unapproved domain or internal host");
   }

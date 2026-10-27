@@ -18,7 +18,7 @@ const design = readFileSync(new URL("docs/design.md", root), "utf8");
 const rows = [...design.matchAll(/^\| `([^`]+)` \| (\d+(?:-\d+)?) \| (C\d+) \| (read|write|download|auth|unverified|excluded) \| (.*?) \|$/gm)];
 if (rows.length !== 20 || new Set(rows.map((row) => row[1])).size !== rows.length) throw new Error("Incomplete or duplicated PDF coverage ledger");
 const capabilities = { schemaVersion: 1, sources, coverage: rows.map(([, capability, pages, slice, disposition, reason]) => ({
-  capability, pages, slice, disposition, reason, source: source.id, sourceSha256: source.sha256, executable: ["C2", "C3", "C4", "C5", "C6", "C7", "C8"].includes(slice),
+  capability, pages, slice, disposition, reason, source: source.id, sourceSha256: source.sha256, executable: ["C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"].includes(slice),
 })) };
 const content = `${JSON.stringify(capabilities, null, 2)}\n`;
 const target = new URL("inventory/capabilities.json", root);

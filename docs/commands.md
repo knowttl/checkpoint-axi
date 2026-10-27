@@ -212,9 +212,9 @@ checkpoint-axi event show <id>
 checkpoint-axi event show <id> --full
 ```
 
-## exception create
+## exception clear
 
-Preview or create one phishing-allow, phishing-block or spam-allow exception (guide pages 61-64, 75-78)
+Refuse click-time clear with ENDPOINT_UNVERIFIED until commissioning provides a trustworthy pre-read count (guide pages 87-88, 96-97)
 
 | Flag | Meaning |
 |---|---|
@@ -225,8 +225,28 @@ Preview or create one phishing-allow, phishing-block or spam-allow exception (gu
 | `--help` | Show concise command help; default false |
 | `--execute` | Send once after all write gates; default false (preview) |
 | `--dry-run` | Explicit preview; cannot combine with --execute |
-| `--confirm` | Exact operation followed by a space and the target from preview (payload sha256 for create, exception ID otherwise) |
-| `--input` | Required absolute private JSON file containing documented requestData fields directly; at least one matching criterion; update sends a replacement PUT |
+| `--confirm` | Exact operation followed by a space and every target from preview (payload sha256 for create, exception ID or comma-separated item IDs otherwise) |
+
+```sh
+checkpoint-axi exception clear click-time
+checkpoint-axi exception clear click-time --dry-run
+```
+
+## exception create
+
+Preview or create one phishing-allow, phishing-block, spam-allow, anomaly or click-time exception; C9 response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--execute` | Send once after all write gates; default false (preview) |
+| `--dry-run` | Explicit preview; cannot combine with --execute |
+| `--confirm` | Exact operation followed by a space and every target from preview (payload sha256 for create, exception ID or comma-separated item IDs otherwise) |
+| `--input` | Required absolute private JSON file containing documented requestData fields directly; fields depend on kind; update sends a replacement PUT |
 
 ```sh
 checkpoint-axi exception create phishing-allow --input /absolute/rule.json
@@ -257,7 +277,7 @@ checkpoint-axi exception list click-time --items --all
 
 ## exception remove
 
-Preview or remove one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 67-69, 81-82)
+Preview or remove one phishing-allow, phishing-block, spam-allow, anomaly rule or click-time item by ID (guide pages 67-69, 81-82, 85-87, 98-99)
 
 | Flag | Meaning |
 |---|---|
@@ -268,11 +288,32 @@ Preview or remove one phishing-allow, phishing-block or spam-allow exception by 
 | `--help` | Show concise command help; default false |
 | `--execute` | Send once after all write gates; default false (preview) |
 | `--dry-run` | Explicit preview; cannot combine with --execute |
-| `--confirm` | Exact operation followed by a space and the target from preview (payload sha256 for create, exception ID otherwise) |
+| `--confirm` | Exact operation followed by a space and every target from preview (payload sha256 for create, exception ID or comma-separated item IDs otherwise) |
 
 ```sh
 checkpoint-axi exception remove phishing-allow <id>
 checkpoint-axi exception remove spam-allow <id> --execute --confirm 'exception.spam-allow.remove <id>'
+```
+
+## exception remove-items
+
+Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--execute` | Send once after all write gates; default false (preview) |
+| `--dry-run` | Explicit preview; cannot combine with --execute |
+| `--confirm` | Exact operation followed by a space and every target from preview (payload sha256 for create, exception ID or comma-separated item IDs otherwise) |
+| `--ids` | Required 1-20 unique comma-separated click-time item IDs |
+
+```sh
+checkpoint-axi exception remove-items click-time --ids <id1>,<id2>
+checkpoint-axi exception remove-items click-time --ids <id1>,<id2> --execute --confirm 'exception.click-time.remove-items <id1>,<id2>'
 ```
 
 ## exception show
@@ -297,7 +338,7 @@ checkpoint-axi exception show click-time <id> --items --full
 
 ## exception update
 
-Preview or replace one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 64-67, 78-81)
+Preview or replace one phishing-allow, phishing-block, spam-allow or click-time exception by ID; click-time is single-item only (guide pages 64-67, 78-81, 94-96)
 
 | Flag | Meaning |
 |---|---|
@@ -308,8 +349,8 @@ Preview or replace one phishing-allow, phishing-block or spam-allow exception by
 | `--help` | Show concise command help; default false |
 | `--execute` | Send once after all write gates; default false (preview) |
 | `--dry-run` | Explicit preview; cannot combine with --execute |
-| `--confirm` | Exact operation followed by a space and the target from preview (payload sha256 for create, exception ID otherwise) |
-| `--input` | Required absolute private JSON file containing documented requestData fields directly; at least one matching criterion; update sends a replacement PUT |
+| `--confirm` | Exact operation followed by a space and every target from preview (payload sha256 for create, exception ID or comma-separated item IDs otherwise) |
+| `--input` | Required absolute private JSON file containing documented requestData fields directly; fields depend on kind; update sends a replacement PUT |
 
 ```sh
 checkpoint-axi exception update phishing-block <id> --input /absolute/rule.json

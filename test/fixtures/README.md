@@ -22,3 +22,7 @@ They test refusal of uncommissioned parameter serialization, not an assumed obje
 `exception-write.json` derives request fields and boolean types from guide pages 62-66 and 76-80, using invented content and a reserved example address.
 `exception-write-page.json` derives the envelope-only acknowledgement from pages 63-64, 67, 77-78 and 80-82.
 Exception-write tests derive bodyless removal and envelope code 204 from pages 67-69 and 81-82, rather than copying sample identifiers.
+C9 sectools-write tests derive anomaly request bodies from pages 84 and 86, click-time create/update bodies from pages 92-95, remove-items from pages 97-98 and bodyless item removal from pages 98-99.
+These pages provide example request bodies but no request parameter tables or response schemas.
+All request identifiers and content are invented; acknowledgement JSON and empty HTTP 204 responses are explicitly provisional transport fixtures, not schema-derived vendor responses.
+Tests never infer identity, existence, no-op status or a list count from these acknowledgements.

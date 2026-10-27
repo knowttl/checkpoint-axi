@@ -118,20 +118,20 @@
       "pages": "84-87",
       "slice": "C9",
       "disposition": "write",
-      "reason": "Shared sectools/anomaly/exceptions POST needs explicit operation binding.",
+      "reason": "Shipped in C9; gated shared POST distinguished by documented request bodies; response identities remain unverified.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "click-time create update remove remove-items clear",
       "pages": "91-100",
       "slice": "C9",
       "disposition": "write",
-      "reason": "List and item mutations; body-less clear needs counted confirmation.",
+      "reason": "Shipped in C9; gated item writes; clear refuses ENDPOINT_UNVERIFIED and collection PUT is deferred until commissioning.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "malware create update",
