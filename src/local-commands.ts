@@ -1,0 +1,72 @@
+import { AxiError } from "axi-sdk-js";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
+import { catalogue, DESCRIPTION, help, SETUP_GUIDANCE } from "./catalogue.js";
+import { credentialStore } from "./profiles.js";
+
+export function localCommand(argv: string[], store: ReturnType<typeof credentialStore>): Record<string, unknown> {
+  if (argv.length === 1 && argv[0] === "--help") return help();
+  const name = !argv.length || argv[0]?.startsWith("--") ? "home" : argv[0] === "home" ? "home" : argv.slice(0, 2).join(" ");
+  const entry = catalogue[name as keyof typeof catalogue];
+  const usage = (message = "Unknown command, argument, duplicate or invalid flag"): never => { throw new AxiError(message, "VALIDATION_ERROR", [
+    "Valid commands: home, auth status, profile list, config path; valid flags: --config <path>, --profile <name>, --fields <names>, --full, --help",
+  ]); };
+  if (!Object.hasOwn(catalogue, name)) usage();
+  const flags = new Map<string, string>();
+  const start = name === "home" ? (argv[0] === "home" ? 1 : 0) : 2;
+  for (let index = start; index < argv.length; index++) {
+    const flag = argv[index]!;
+    if (!flag.startsWith("--")) usage();
+    if (!Object.hasOwn(entry.flags, flag.slice(2)) || flags.has(flag)) {
+      const label = flag.split("=")[0]!;
+      usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
+    }
+    if (flag === "--help" || flag === "--full") flags.set(flag, "true");
+    else {
+      const value = argv[++index];
+      if (!value || value.startsWith("--")) usage();
+      flags.set(flag, value!);
+    }
+  }
+  if (flags.has("--help")) return { command: name, ...entry };
+  const available = name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
+    : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
+      : ["bin", "description", "status", "profiles", "count", "help"];
+  const fields = flags.get("--fields")?.split(",") ?? available;
+  if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
+  const config = flags.get("--config");
+  let result: Record<string, unknown>;
+  if (name === "auth status") result = store.status(config, flags.get("--profile"));
+  else if (name === "profile list") result = store.list(config);
+  else if (name === "config path") result = { config: store.configPath(config), state: store.statePath() };
+  else {
+    const listed = store.list(config);
+    // Selection errors matter when context exists, but a new installation has a useful empty home.
+    const loaded = store.load(config);
+    let status = "not configured";
+    try {
+      const selected = store.select(loaded.config, flags.get("--profile"));
+      status = `configured: ${selected.name} (${selected.region}); not verified with the API`;
+    } catch (error) {
+      if (!(error instanceof AxiError) || error.code !== "PROFILE_REQUIRED") throw error;
+    }
+    const executable = resolve(process.argv[1] ?? "bin/checkpoint-axi.js");
+    const home = homedir();
+    result = { bin: executable.startsWith(`${home}/`) ? `~${executable.slice(home.length)}` : executable,
+      description: DESCRIPTION, status, profiles: listed.profiles, count: listed.count,
+      help: [SETUP_GUIDANCE, "Run checkpoint-axi auth status to validate local credentials", "Run checkpoint-axi profile list to inspect configured profiles"] };
+  }
+  let truncated = false;
+  const preview = (value: unknown): unknown => {
+    if (typeof value === "string" && value.length > 500 && !flags.has("--full")) {
+      truncated = true;
+      return `${value.slice(0, 500)}... (truncated, ${value.length} chars total)`;
+    }
+    if (Array.isArray(value)) return value.map(preview);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, preview(child)]));
+    return value;
+  };
+  const projected = preview(store.redactor.value(Object.fromEntries(fields.map((field) => [field, result[field]])))) as Record<string, unknown>;
+  if (truncated) projected.help = [...(Array.isArray(projected.help) ? projected.help : []), "Repeat the command with --full to see complete strings"];
+  return projected;
+}

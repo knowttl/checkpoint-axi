@@ -1,0 +1,42 @@
+{
+  "name": "@knowttl/checkpoint-axi",
+  "version": "0.0.0",
+  "description": "Inspect Check Point Email Security through compact, guarded AXI commands",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "checkpoint-axi": "bin/checkpoint-axi.js",
+    "checkpoint-axi-hook": "bin/checkpoint-axi-hook.js"
+  },
+  "exports": {
+    "./catalogue": "./dist/src/catalogue.js",
+    "./inventory": "./inventory/capabilities.json",
+    "./axi-credential.schema.json": "./axi-credential.schema.json"
+  },
+  "files": ["bin", "dist/src", "inventory", "axi-credential.schema.json", "docs/commands.md", "skills"],
+  "publishConfig": { "access": "public" },
+  "repository": { "type": "git", "url": "git+https://github.com/knowttl/checkpoint-axi.git" },
+  "engines": { "node": ">=22.12.0" },
+  "packageManager": "pnpm@10.34.6",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "corepack pnpm run typecheck",
+    "test": "node scripts/isolated.mjs node scripts/test-changes.mjs",
+    "docs:generate": "node scripts/generate-docs.mjs",
+    "docs:check": "node scripts/generate-docs.mjs --check",
+    "spec:generate": "node scripts/specs.mjs --generate",
+    "spec:check": "node scripts/specs.mjs --check",
+    "identifiers:check": "node scripts/check-identifiers.mjs"
+  },
+  "dependencies": {
+    "@toon-format/toon": "2.3.1",
+    "axi-sdk-js": "0.1.13",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2"
+  }
+}

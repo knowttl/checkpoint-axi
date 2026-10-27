@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "email-security-api",
+      "title": "Email Security API Reference Guide",
+      "revision": "2026-10-23",
+      "url": "https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf",
+      "sha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "bytes": 2596219,
+      "pages": 138,
+      "redistributed": false
+    }
+  ],
+  "coverage": [
+    {
+      "capability": "auth exchange and doctor",
+      "pages": "8-9",
+      "slice": "C2",
+      "disposition": "auth",
+      "reason": "Commission the undocumented token contract manually after C2.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "email search and show",
+      "pages": "10-27",
+      "slice": "C3",
+      "disposition": "read",
+      "reason": "GET entity detail and POST search/query with bounded scroll.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "event list and show",
+      "pages": "34-42",
+      "slice": "C4",
+      "disposition": "read",
+      "reason": "GET event detail and POST event/query with bounded scroll.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "task show",
+      "pages": "30-33",
+      "slice": "C4",
+      "disposition": "read",
+      "reason": "GET task status for asynchronous entity and event actions.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "legacy exception reads",
+      "pages": "49-55",
+      "slice": "C5",
+      "disposition": "read",
+      "reason": "GET whitelist/blacklist list and detail.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "exception list and show for eight kinds",
+      "pages": "55-131",
+      "slice": "C5",
+      "disposition": "read",
+      "reason": "All documented family and item reads, including click-time items.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "email quarantine and restore",
+      "pages": "28-30",
+      "slice": "C6",
+      "disposition": "write",
+      "reason": "POST action/entity through the common write coordinator.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "event action",
+      "pages": "42-45",
+      "slice": "C7",
+      "disposition": "write",
+      "reason": "POST action/event validated against availableEventActions.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "phishing create update remove",
+      "pages": "61-69",
+      "slice": "C8",
+      "disposition": "write",
+      "reason": "Anti-Phishing allow and block CRUD with explicit scope.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "spam create update remove",
+      "pages": "75-83",
+      "slice": "C8",
+      "disposition": "write",
+      "reason": "Spam allow-list CRUD with explicit scope.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "anomaly create remove",
+      "pages": "84-87",
+      "slice": "C9",
+      "disposition": "write",
+      "reason": "Shared sectools/anomaly/exceptions POST needs explicit operation binding.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "click-time create update remove remove-items clear",
+      "pages": "91-100",
+      "slice": "C9",
+      "disposition": "write",
+      "reason": "List and item mutations; body-less clear needs counted confirmation.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "malware create update",
+      "pages": "102-106",
+      "slice": "C10",
+      "disposition": "write",
+      "reason": "Create, create-specific and modify sectool-exceptions/checkpoint2.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "url create update",
+      "pages": "113-117",
+      "slice": "C10",
+      "disposition": "write",
+      "reason": "Create, create-specific and modify sectool-exceptions/avanan_url.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "dlp create update",
+      "pages": "123-127",
+      "slice": "C10",
+      "disposition": "write",
+      "reason": "Create, create-specific and modify sectool-exceptions/avanan_dlp.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "malware remove clear",
+      "pages": "107-110",
+      "slice": "C10",
+      "disposition": "unverified",
+      "reason": "Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "url remove clear",
+      "pages": "117-120",
+      "slice": "C10",
+      "disposition": "unverified",
+      "reason": "Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "dlp remove clear",
+      "pages": "128-131",
+      "slice": "C10",
+      "disposition": "unverified",
+      "reason": "Refuse two ambiguous deletes with ENDPOINT_UNVERIFIED pending commissioning.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "email and attachment downloads",
+      "pages": "131-137",
+      "slice": "C11",
+      "disposition": "download",
+      "reason": "Entity EML, individual attachment and all-attachment ZIP with opt-in.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    },
+    {
+      "capability": "audit logs",
+      "pages": "138",
+      "slice": "C12",
+      "disposition": "excluded",
+      "reason": "Outside this API; use Check Point Portal APIs separately.",
+      "source": "email-security-api",
+      "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
+      "executable": false
+    }
+  ]
+}

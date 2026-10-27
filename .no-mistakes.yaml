@@ -1,0 +1,60 @@
+agent: codex
+agent_args_override:
+  codex:
+    - -m
+    - gpt-6.1-sol
+    - -c
+    - model_reasoning_effort="medium"
+no_ci: true
+commands:
+  prepare: 'node scripts/isolated.mjs corepack pnpm install --frozen-lockfile --ignore-scripts --config.confirm-modules-purge=false'
+  test: 'corepack pnpm test && corepack pnpm run spec:check && corepack pnpm run docs:check && corepack pnpm run identifiers:check'
+  lint: 'node scripts/isolated.mjs corepack pnpm run lint'
+document:
+  instructions: |
+    README.md owns shipped behavior and development commands.
+    AGENTS.md and CONTRIBUTING.md own contribution and offline testing rules.
+    docs/design.md owns security invariants, API dispositions and the twelve slices.
+    inventory/specs.json pins the vendor PDF URL and byte hash; the PDF is not redistributed.
+    scripts/specs.mjs checks provenance and generates inventory/capabilities.json from the design ledger.
+    src/catalogue.ts owns executable commands. Planned inventory never enables execution.
+    scripts/test-changes.mjs owns affected-test selection and the fixed safety baseline.
+review:
+  path_instructions:
+    - path: "src/**/profile*"
+      instructions: |
+        Reject unknown fields and partial env profiles. File profiles never mix env fields.
+        clientSecret accepts only env/file SecretRefs; secrets never enter argv or output.
+        Use only the seven public region gateways, never a free origin.
+        Environment profiles cannot enable writes or downloads.
+    - path: "src/**/private*"
+      instructions: |
+        Validate ownership, regular files, symlink rejection and POSIX permissions before reads.
+        Windows ignores mode bits and auth status verifies protected DACLs.
+    - path: "src/**/redact*"
+      instructions: |
+        Register raw, escaped and encoded secrets before use and tokens on receipt.
+        Redact all output, errors, previews and future journal metadata.
+    - path: "src/**/transport*"
+      instructions: |
+        Fixed region map, HTTPS, TLS verification and redirect:error only. No caller-supplied origins.
+        Bound reads and cursors; POST searches are reads. Never replay writes.
+    - path: "src/**/write*"
+      instructions: |
+        Require configured operation scope, preview, explicit execution, exact confirmation and durable intent before send.
+        READ_ONLY wins. Never retry ambiguous outcomes. Refuse the six uncommissioned deletes with ENDPOINT_UNVERIFIED.
+    - path: "src/**/download*"
+      instructions: |
+        Require profile opt-in and a new 0600 output file, never stdout; cap at 50 MiB and verify x-av-sha256.
+        Only path, size and sha256 may be printed.
+    - path: "inventory/**"
+      instructions: |
+        Preserve PDF byte hash, URL and page provenance. Planned coverage never implies runtime support.
+    - path: "test/**"
+      instructions: |
+        Run offline with the network-deny guard and synthetic fixtures. Never contact a live tenant.
+        The identifier guard rejects tenant UUIDs, customer domains and internal hostnames in fixtures and docs.
+auto_fix:
+  review: 1
+  test: 3
+  lint: 0

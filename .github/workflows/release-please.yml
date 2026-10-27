@@ -1,0 +1,64 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile --ignore-scripts
+      - run: corepack pnpm run build
+      - run: corepack pnpm run lint
+      # Publication checks only; the repository has no pull-request test CI.
+      - run: corepack pnpm test
+      - run: corepack pnpm run spec:check
+      - run: corepack pnpm run docs:check
+      - run: corepack pnpm run identifiers:check
+      - name: Pack verified release
+        run: npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
+      - name: Enable npm OIDC trusted publishing
+        run: |
+          node --input-type=module -e '
+            import { readFileSync, writeFileSync } from "node:fs";
+            const path = process.env.NPM_CONFIG_USERCONFIG;
+            writeFileSync(path, readFileSync(path, "utf8").split("\n").filter(line => !line.includes(":_authToken=")).join("\n"));
+          '
+      - name: Publish verified tarball with provenance
+        run: |
+          version=$(node -p "require('./package.json').version")
+          npm publish "$RUNNER_TEMP/knowttl-checkpoint-axi-$version.tgz" --access public --provenance
