@@ -18,7 +18,7 @@ node bin/checkpoint-axi.js profile list
 node bin/checkpoint-axi.js auth status --help
 ```
 
-Output is TOON; errors use stable codes and exit 1, while invalid input exits 2.
+Output is TOON; errors use stable codes and exit 1, while invalid command syntax or flags exit 2.
 Bare `--version`, `-v` and `-V` print the version without loading the command graph.
 Strings have 500-character previews; `--full` returns complete strings and `--fields` selects output fields.
 
