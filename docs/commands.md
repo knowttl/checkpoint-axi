@@ -73,10 +73,10 @@ Search emails with a bounded date window and scroll continuation (API guide page
 | `--saas-entity` | Optional SaaS entity type selector |
 | `--start-date` | ISO timestamp with timezone; default 24 hours before end-date; maximum window 31 days |
 | `--end-date` | ISO timestamp with timezone; default now |
-| `--filter` | JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20) |
 | `--limit` | Maximum rows; default 50, range 1-1000; cannot combine with --all |
 | `--all` | Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false |
 | `--cursor` | Opaque continuation bound to profile, region, operation and selectors; repeat original selectors |
+| `--filter` | JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20) |
 
 ```sh
 checkpoint-axi email search
@@ -99,6 +99,53 @@ Show one email with verdicts, actions and available actions (API guide pages 10-
 ```sh
 checkpoint-axi email show <id>
 checkpoint-axi email show <id> --full
+```
+
+## event list
+
+List security events with bounded scroll continuation (API guide pages 37-42)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--start-date` | ISO timestamp with timezone; default 24 hours before end-date; maximum window 31 days |
+| `--end-date` | ISO timestamp with timezone; default now |
+| `--limit` | Maximum rows; default 50, range 1-1000; cannot combine with --all |
+| `--all` | Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false |
+| `--cursor` | Opaque continuation bound to profile, region, operation and selectors; repeat original selectors |
+| `--saas` | Comma-separated SaaS overrides; default selected profile saas or office365_emails |
+| `--event-types` | Comma-separated event types; default unfiltered |
+| `--event-states` | Comma-separated event states; default unfiltered |
+| `--severities` | Comma-separated severities; default unfiltered |
+| `--event-ids` | Comma-separated event IDs; default unfiltered |
+| `--confidence-indicator` | Confidence indicator selector; default unfiltered |
+| `--description` | Description selector; default unfiltered |
+
+```sh
+checkpoint-axi event list
+checkpoint-axi event list --all --event-types phishing
+checkpoint-axi event list --cursor <cursor>
+```
+
+## event show
+
+Show one event, actions taken and available actions (API guide pages 34-37)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+
+```sh
+checkpoint-axi event show <id>
+checkpoint-axi event show <id> --full
 ```
 
 ## home
@@ -133,4 +180,21 @@ List file profiles without resolving secrets; --profile does not filter this lis
 ```sh
 checkpoint-axi profile list
 checkpoint-axi profile list --config /example/config.json
+```
+
+## task show
+
+Show asynchronous task status and per-action details (API guide pages 30-33)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+
+```sh
+checkpoint-axi task show <id>
+checkpoint-axi task show <id> --full
 ```
