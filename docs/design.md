@@ -1,7 +1,7 @@
 # Design and delivery boundaries
 
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
-C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads; C6 adds the write coordinator and email quarantine/restore; C7 adds name-only event actions; C8 adds Anti-Phishing and Spam exception writes.
+C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads; C6 adds the write coordinator and email quarantine/restore; C7 adds name-only event actions; C8 adds Anti-Phishing and Spam exception writes; C9 adds anomaly and click-time writes with the commissioning deferrals below.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
 The source is the [Email Security API Reference Guide, 23 October 2026](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf).
 `inventory/specs.json` pins its URL, SHA-256, byte length and page count.
@@ -74,7 +74,18 @@ Revocation at that check aborts with the original scope/configuration error and 
 Only a successful response envelope is acknowledged as accepted; remove also accepts the documented envelope code 204.
 No task ID or created exception ID is invented; reconcile with list/show after submission.
 Live exception behavior remains uncommissioned until the owner tests all slices through Artium.
-Clearing a list requires confirmation including the freshly read count.
+C9 sends documented anomaly create/remove and click-time create/single-item update/remove/remove-items requests through the C6 coordinator (pages 84-99).
+The guide supplies no response schemas for these reads or acknowledgements, so C9 does not invent identities, existence checks or no-op detection.
+Previews explicitly mark target state unverified; the coordinator's initial and final state callbacks retain that uncertainty without making an undocumented existence preflight.
+All writes still require exact operation scope, explicit execution, confirmation of every caller-supplied target, durable redacted intent and a scope/configuration check immediately before the single send.
+Create confirmations bind the complete private input by payload SHA-256; anomaly remove confirms the caller's ruleId; click-time update/remove confirms the item ID and remove-items confirms 1-20 unique IDs in order.
+Successful HTTP status with valid JSON (or an empty HTTP 204) is accepted, provided any supplied responseEnvelope also reports success; raw bounded JSON is preserved as response with responseSchema: unverified.
+No created ID, task ID or count is inferred from the acknowledgement; ambiguous responses are never retried.
+Fixtures for these undocumented responses are arbitrary provisional JSON, not claimed schema-derived vendor responses.
+Clearing a list requires confirmation including the freshly read count, which C9 cannot establish from an undocumented list shape.
+Therefore exception clear click-time refuses ENDPOINT_UNVERIFIED before authentication, including previews, until commissioning supplies a trustworthy count contract (pages 87-88, 96-97).
+Click-time update exposes only PUT items/{item_id}; collection PUT items (pages 93-94) is deferred to commissioning.
+Clear, collection PUT, response identities, existence/no-op detection and acknowledgement shapes are explicit live-commissioning follow-ups through Artium.
 Six malware/URL/DLP delete operations stay refused as `ENDPOINT_UNVERIFIED` until manual commissioning resolves the guide's identical create/delete descriptions.
 Downloads require `downloads.allow`, a new exclusive 0600 `--out` file, a 50 MiB cap and verified `x-av-sha256`.
 They never stream to stdout and report only path, size and SHA-256.
@@ -83,7 +94,7 @@ Hosted downloads will reuse Artium's artifact mechanism in C12.
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read, C5 exception-read, C6 email-write, C7 name-only event-action and C8 Anti-Phishing/Spam exception-write capabilities.
+Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read, C5 exception-read, C6 email-write, C7 name-only event-action, C8 Anti-Phishing/Spam exception-write and C9 anomaly/click-time capabilities (with explicit commissioning deferrals).
 Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
@@ -99,8 +110,8 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 | `event action` | 42-45 | C7 | write | Shipped in C7; gated POST action/event validates availableEventActions; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning. |
 | `phishing create update remove` | 61-69 | C8 | write | Shipped in C8; gated allow/block create, PUT replacement and bodyless POST remove with exact scope and confirmation. |
 | `spam create update remove` | 75-83 | C8 | write | Shipped in C8; gated allow-list create, PUT replacement and bodyless POST remove with exact scope and confirmation. |
-| `anomaly create remove` | 84-87 | C9 | write | Shared sectools/anomaly/exceptions POST needs explicit operation binding. |
-| `click-time create update remove remove-items clear` | 91-100 | C9 | write | List and item mutations; body-less clear needs counted confirmation. |
+| `anomaly create remove` | 84-87 | C9 | write | Shipped in C9; gated shared POST distinguished by documented request bodies; response identities remain unverified. |
+| `click-time create update remove remove-items clear` | 91-100 | C9 | write | Shipped in C9; gated item writes; clear refuses ENDPOINT_UNVERIFIED and collection PUT is deferred until commissioning. |
 | `malware create update` | 102-106 | C10 | write | Create, create-specific and modify sectool-exceptions/checkpoint2. |
 | `url create update` | 113-117 | C10 | write | Create, create-specific and modify sectool-exceptions/avanan_url. |
 | `dlp create update` | 123-127 | C10 | write | Create, create-specific and modify sectool-exceptions/avanan_dlp. |

@@ -84,7 +84,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
     if (!Number.isFinite(milliseconds) || milliseconds < 0 || now() + milliseconds >= deadline) throw failure("TIME_BUDGET", "Read time budget exhausted");
     await wait(milliseconds);
   }
-  async function send(path: string, body?: unknown, bearer?: string, method = body === undefined ? "GET" : "POST") {
+  async function send(path: string, body?: unknown, bearer?: string, method = body === undefined ? "GET" : "POST", allowEmpty = false) {
     const remaining = deadline - now();
     if (remaining <= 0) throw failure("TIME_BUDGET", "Read time budget exhausted");
     if (++requests > (mutation ? 44 : READ_LIMITS.requests)) throw failure("REQUEST_BUDGET", "Request budget exhausted");
@@ -111,7 +111,9 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
           const status = response.statusCode ?? 0;
           // Error bodies are untrusted and may echo credentials. Never render them.
           if (status < 200 || status >= 300) return resolve({ status, retryAfter: response.headers["retry-after"], value: undefined });
-          try { resolve({ status, value: JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown }); }
+          const json = Buffer.concat(chunks).toString("utf8");
+          if (allowEmpty && status === 204 && !json) return resolve({ status, value: null });
+          try { resolve({ status, value: JSON.parse(json) as unknown }); }
           catch { reject(failure("RESPONSE_INVALID", "API returned invalid JSON")); }
         });
       });
@@ -209,5 +211,29 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
       throw failure("OUTCOME_UNKNOWN", "Exception write acknowledgement requires reconciliation; never replay automatically");
     }
   }
-  return { authenticate, read, emailAction, eventAction, exceptionWrite };
+  // Guide pp.84-99: request bodies distinguish the shared POST routes.
+  // Response schemas are unpublished; preserve JSON, interpreting only HTTP/envelope status.
+  async function sectoolsWrite(authorization: WriteAuthorization, kind: "anomaly" | "click-time",
+    action: "create" | "update" | "remove" | "remove-items", targets: readonly string[],
+    checkScopeBeforeSend: () => void, data?: Record<string, unknown>): Promise<unknown> {
+    if (!mutation || !["anomaly", "click-time"].includes(kind) || !["create", "update", "remove", "remove-items"].includes(action)
+      || kind === "anomaly" && action !== "create" && action !== "remove"
+      || action !== "remove-items" && targets.length !== 1
+      || !consumeWriteAuthorization(authorization, `exception.${kind}.${action}`, targets, profile.name, profile.region)) {
+      throw failure("WRITES_DISABLED", "A one-use coordinator authorization is required");
+    }
+    const path = kind === "anomaly" ? "/sectools/anomaly/exceptions"
+      : `/sectools/click_time_protection/exceptions/items${action === "update" || action === "remove" ? `/${encodeURIComponent(targets[0]!)}` : ""}`;
+    await authenticate();
+    await spaceException(path);
+    checkScopeBeforeSend();
+    const response = await send(`/app/hec-api/v1.0${path}`, kind === "click-time" && action === "remove" ? undefined : { requestData: data },
+      token, action === "update" ? "PUT" : "POST", true);
+    if (response.status < 200 || response.status >= 300 || object(response.value) && Object.hasOwn(response.value, "responseEnvelope")
+      && (!object(response.value.responseEnvelope) || ![0, "0", 200, "200", 204, "204"].includes(response.value.responseEnvelope.responseCode as string | number))) {
+      throw failure("OUTCOME_UNKNOWN", "Exception write status requires reconciliation; never replay automatically");
+    }
+    return response.value;
+  }
+  return { authenticate, read, emailAction, eventAction, exceptionWrite, sectoolsWrite };
 }

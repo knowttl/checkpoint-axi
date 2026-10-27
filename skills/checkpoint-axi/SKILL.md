@@ -82,11 +82,13 @@ All exception writes remain uncommissioned until the owner tests through Artium.
 | `npx -y @knowttl/checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
 | `npx -y @knowttl/checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
 | `npx -y @knowttl/checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
-| `npx -y @knowttl/checkpoint-axi exception create` | Preview or create one phishing-allow, phishing-block or spam-allow exception (guide pages 61-64, 75-78) |
+| `npx -y @knowttl/checkpoint-axi exception clear` | Refuse click-time clear with ENDPOINT_UNVERIFIED until commissioning provides a trustworthy pre-read count (guide pages 87-88, 96-97) |
+| `npx -y @knowttl/checkpoint-axi exception create` | Preview or create one phishing-allow, phishing-block, spam-allow, anomaly or click-time exception; C9 response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93) |
 | `npx -y @knowttl/checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
-| `npx -y @knowttl/checkpoint-axi exception remove` | Preview or remove one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 67-69, 81-82) |
+| `npx -y @knowttl/checkpoint-axi exception remove` | Preview or remove one phishing-allow, phishing-block, spam-allow, anomaly rule or click-time item by ID (guide pages 67-69, 81-82, 85-87, 98-99) |
+| `npx -y @knowttl/checkpoint-axi exception remove-items` | Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98) |
 | `npx -y @knowttl/checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
-| `npx -y @knowttl/checkpoint-axi exception update` | Preview or replace one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 64-67, 78-81) |
+| `npx -y @knowttl/checkpoint-axi exception update` | Preview or replace one phishing-allow, phishing-block, spam-allow or click-time exception by ID; click-time is single-item only (guide pages 64-67, 78-81, 94-96) |
 | `npx -y @knowttl/checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `npx -y @knowttl/checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 | `npx -y @knowttl/checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
