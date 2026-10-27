@@ -261,8 +261,9 @@ Commands preview by default; `--dry-run` makes that explicit.
 Inspect the requested rule and current state, then repeat with `--execute` and the exact `--confirm` emitted by the preview.
 Create confirmation is `exception.<kind>.create sha256:<digest>`, binding the canonical payload; update/remove confirmation is `exception.<kind>.<action> <id>`.
 Create reads a complete bounded list to detect an identical rule; incomplete lists refuse execution because no continuation parameter is documented.
-Update/remove validate one matching detail response or an empty result.
-Identical creates/replacements and absent removals are no-ops without a journal or send.
+Update/remove validate one matching detail response or an empty result; an absent update returns `NOT_FOUND`.
+Identical creates/replacements and absent removals detected on the initial read are no-ops without confirmation, a journal or a send.
+If the final read detects a no-op, the command returns `outcome: noop` with `auditId` and records `NOT_SENT` in the journal.
 After exact confirmation, durable redacted intent precedes a final state read, profile check and single send.
 The journal contains operation/target metadata, never the JSON payload.
 Preflight reads and the mutation share the exception rate spacer and the write transport budgets.

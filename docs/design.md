@@ -44,7 +44,7 @@ The C6 write coordinator requires configured `allowWrites` and exact operation s
 `CHECKPOINT_AXI_READ_ONLY` overrides configured write permission.
 Target batches stop at 20; ambiguous outcomes report `OUTCOME_UNKNOWN` and are never replayed.
 Entity/event actions return `accepted` and `taskId`, since execution is asynchronous.
-The email action transport consumes a one-use coordinator authorization bound to the operation, targets, profile and region.
+Each write transport consumes a one-use coordinator authorization bound to the operation, targets, profile and region.
 Before a send, the coordinator re-reads every target and checks that the selected profile has not changed.
 The API offers no conditional entity-action request, so this cannot prevent a concurrent server-side change after preflight.
 The journal and its lock must be private regular files in a private directory; symlinks, hard-linked journals, insecure modes, an incomplete journal or an existing lock block execution.
@@ -69,6 +69,8 @@ Create preflight requires a complete bounded list to detect an identical rule; u
 An identical create/replacement or absent remove is a no-op; incomplete or malformed preflight fails closed.
 The closed transport consumes one authorization and sends POST create, PUT replacement or bodyless POST remove, without retry or reauthentication.
 Exception reads and sends share their family rate spacer.
+C8 rechecks forced read-only, exact operation scope and profile identity after send pacing, immediately before the mutation request.
+Revocation at that check aborts with the original scope/configuration error and records `NOT_SENT`; `test/exception-writes.test.ts` covers revocation during pacing for every C8 operation.
 Only a successful response envelope is acknowledged as accepted; remove also accepts the documented envelope code 204.
 No task ID or created exception ID is invented; reconcile with list/show after submission.
 Live exception behavior remains uncommissioned until the owner tests all slices through Artium.
