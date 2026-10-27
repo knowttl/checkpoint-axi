@@ -84,7 +84,7 @@ Environment profiles always disable writes and downloads.
 
 POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
 Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
-On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email reads also verify a protected DACL for the current user, SYSTEM and Administrators.
+On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email, event and task reads also verify a protected DACL for the current user, SYSTEM and Administrators.
 
 ## Doctor and commissioning
 
