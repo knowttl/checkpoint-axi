@@ -54,6 +54,15 @@ review:
         Bind opaque cursors to profile/client identity, regional origin, operation and selectors; preserve unread page rows.
         All scans share transport budgets and stop at 1000 rows, returning incomplete status and continuation.
         Redact secret-derived strings before 500-character previews; never truncate continuation cursors.
+    - path: "src/**/exceptions*"
+      instructions: |
+        Only documented exception GET routes; never invent anomaly detail or paging parameters.
+        Anomaly show refuses ENDPOINT_UNVERIFIED before authentication until identity commissioning.
+        Require documented --type for malware/URL/DLP; encode show values as one path segment.
+        Undocumented response shapes stay explicitly unverified; preserve JSON under output and transport bounds.
+        Lists default to 50 rows and cap at 1000; report incomplete when truncated or metadata advertises more.
+        Apply 1 request/second Anti-Phishing and 10 requests/second other-exception spacers including retries.
+        Redact before 500-character previews and preserve --full.
     - path: "src/**/write*"
       instructions: |
         Require configured operation scope, preview, explicit execution, exact confirmation and durable intent before send.

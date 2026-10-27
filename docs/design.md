@@ -1,7 +1,7 @@
 # Design and delivery boundaries
 
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
-C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads.
+C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
 The source is the [Email Security API Reference Guide, 23 October 2026](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf).
 `inventory/specs.json` pins its URL, SHA-256, byte length and page count.
@@ -54,7 +54,7 @@ Hosted downloads will reuse Artium's artifact mechanism in C12.
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read and C4 event/task-read capabilities.
+Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read and C5 exception-read capabilities.
 Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
@@ -64,8 +64,8 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 | `email search and show` | 10-27 | C3 | read | Shipped in C3; GET entity detail and POST search/query with bounded scroll. |
 | `event list and show` | 34-42 | C4 | read | Shipped in C4; GET event detail and POST event/query with bounded scroll. |
 | `task show` | 30-33 | C4 | read | Shipped in C4; GET task status and per-action details for asynchronous actions. |
-| `legacy exception reads` | 49-55 | C5 | read | GET whitelist/blacklist list and detail. |
-| `exception list and show for eight kinds` | 55-131 | C5 | read | All documented family and item reads, including click-time items. |
+| `legacy exception reads` | 49-55 | C5 | read | Shipped in C5 through phishing-allow and phishing-block list/show; same whitelist/blacklist routes. |
+| `exception list and show for eight kinds` | 55-131 | C5 | read | Shipped in C5; documented family/item reads; anomaly show refuses ENDPOINT_UNVERIFIED pending response identity commissioning. |
 | `email quarantine and restore` | 28-30 | C6 | write | POST action/entity through the common write coordinator. |
 | `event action` | 42-45 | C7 | write | POST action/event validated against availableEventActions. |
 | `phishing create update remove` | 61-69 | C8 | write | Anti-Phishing allow and block CRUD with explicit scope. |

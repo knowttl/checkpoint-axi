@@ -74,7 +74,12 @@ test.each([["2", 2_000], ["Thu, 01 Jan 2026 00:00:03 GMT", 3_000]])("reads honor
   expect(waits[0]).toBe(expected);
 });
 
-test.each([["/exceptions/whitelist", 1_000], ["/exceptions/spam_whitelist", 100]] as const)("exception route spacers apply across reads: %s", async (path, expected) => {
+test.each([["/exceptions/whitelist", 1_000], ["/exceptions/blacklist/synthetic-id", 1_000],
+  ["/exceptions/spam_whitelist", 100], ["/sectools/anomaly/exceptions", 100],
+  ["/sectools/click_time_protection/exceptions/items/synthetic-id", 100],
+  ["/sectool-exceptions/checkpoint2/exceptions/hash", 100],
+  ["/sectool-exceptions/avanan_url/exceptions/allow-url", 100],
+  ["/sectool-exceptions/avanan_dlp/exceptions/hash/synthetic-value", 100]] as const)("exception route spacers apply across reads: %s", async (path, expected) => {
   let clock = 0;
   const waits: number[] = [];
   const { api } = await setup((request, response) => response.end(JSON.stringify(request.url === "/auth/external" ? { token: "synthetic-token" } : page)),

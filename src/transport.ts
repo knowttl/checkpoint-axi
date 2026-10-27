@@ -7,26 +7,33 @@ import type { SelectedProfile } from "./profiles.js";
 import type { SecretRedactor } from "./redact.js";
 
 export const READ_LIMITS = { requests: 10, rows: 1_000, milliseconds: 60_000, bytes: 8 * 1024 * 1024 } as const;
+export type ExceptionPath = `/exceptions/${"whitelist" | "blacklist" | "spam_whitelist"}${"" | `/${string}`}`
+  | `/sectools/${"anomaly" | "click_time_protection"}/exceptions${"" | `/${string}`}`
+  | `/sectool-exceptions/${"checkpoint2" | "avanan_url" | "avanan_dlp"}/exceptions/${string}`;
 export type ReadRequest =
   | { path: "/search/query"; body: { entityFilter: { saas: string; saasEntity?: string; startDate: string; endDate: string }; entityExtendedFilter?: { saasAttrName: string; saasAttrOp: string; saasAttrValue: string }[]; scrollId?: string } }
   | { path: `/search/entity/${string}`; body?: never }
   | { path: "/event/query"; body: { startDate?: string; endDate?: string; saas?: string[]; eventTypes?: string[]; eventStates?: string[]; severities?: string[]; eventIds?: string[]; confidenceIndicator?: string; description?: string; scrollId?: string } }
   | { path: `/event/${string}` | `/task/${string}`; body?: never }
-  | { path: "/exceptions/whitelist" | "/exceptions/spam_whitelist"; body?: never };
+  | { path: ExceptionPath; body?: never };
 export type Page = { records: unknown[]; scrollId?: string; total?: number };
 type Dependencies = { agent?: Agent; now?: () => number; wait?: (milliseconds: number) => Promise<unknown> };
 const failure = (code: string, message: string) => new AxiError(message, code, ["Check the selected region and credentials; run checkpoint-axi doctor"]);
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
 
 // Object/array responseData inconsistency is documented on guide pages 35-37.
-export function decodePage(value: unknown): Page {
+export function decodePage(value: unknown, unverified = false): Page {
+  // These exception families publish no response schema (guide pages 83-123).
+  if (unverified && (!object(value) || !Object.hasOwn(value, "responseEnvelope"))) {
+    return { records: Array.isArray(value) ? value : [value] };
+  }
   if (!object(value) || !object(value.responseEnvelope)) throw failure("RESPONSE_INVALID", "Missing API response envelope");
   const envelope = value.responseEnvelope;
   if (envelope.responseCode !== 0 && envelope.responseCode !== "0" && envelope.responseCode !== 200 && envelope.responseCode !== "200") {
     throw failure("API_ERROR", "API response envelope did not report success");
   }
   const data = value.responseData;
-  if (!Array.isArray(data) && !object(data)) throw failure("RESPONSE_INVALID", "Expected object or array responseData");
+  if ((!unverified && !Array.isArray(data) && !object(data)) || data === undefined) throw failure("RESPONSE_INVALID", "Expected responseData");
   if (envelope.scrollId !== undefined && envelope.scrollId !== null && typeof envelope.scrollId !== "string") {
     throw failure("RESPONSE_INVALID", "Invalid API scrollId");
   }
@@ -123,7 +130,8 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
   }
   async function read(query: ReadRequest): Promise<Page> {
     await authenticate();
-    const group = query.path === "/exceptions/whitelist" ? "phishing" : query.path.startsWith("/exceptions/") ? "other" : undefined;
+    const group = /^\/exceptions\/(whitelist|blacklist)(\/|$)/.test(query.path) ? "phishing"
+      : /^\/(exceptions|sectools|sectool-exceptions)\//.test(query.path) ? "other" : undefined;
     for (let retries = 0; ;) {
       if (group) {
         const remaining = (nextException.get(group) ?? 0) - now();
@@ -146,7 +154,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
       if (response.status === 401) throw failure("AUTH_FAILED", "API rejected authentication after one re-exchange");
       if (response.status === 429) throw failure("RATE_LIMITED", "API rate limit remains after two read retries");
       if (response.status < 200 || response.status >= 300) throw failure("HTTP_ERROR", `Regional API returned HTTP ${response.status}`);
-      return decodePage(response.value);
+      return decodePage(response.value, /^\/(sectools|sectool-exceptions)\//.test(query.path));
     }
   }
   return { authenticate, read };

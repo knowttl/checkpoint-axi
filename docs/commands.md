@@ -3,7 +3,7 @@
 # Command reference
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
-Email search and detail reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.
+Email, event, task and exception reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.
 Run each command with `--help` for concise help.
 
 ## auth status
@@ -146,6 +146,48 @@ Show one event, actions taken and available actions (API guide pages 34-37)
 ```sh
 checkpoint-axi event show <id>
 checkpoint-axi event show <id> --full
+```
+
+## exception list
+
+List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--type` | Required for malware: hash,micro_hash,file_type,ppat_sender_name,allow_file_type,sender_email; url: allow-url,allow-domain,block-url,block-domain; dlp: hash,text_content,sender_email,recipient_email |
+| `--items` | Click-time item routes instead of list routes; default false |
+| `--limit` | Maximum rows; default 50, range 1-1000; cannot combine with --all |
+| `--all` | Return up to 1000 rows within transport budgets; no server continuation parameter is documented |
+
+```sh
+checkpoint-axi exception list phishing-allow
+checkpoint-axi exception list malware --type hash
+checkpoint-axi exception list click-time --items --all
+```
+
+## exception show
+
+Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--type` | Required for malware: hash,micro_hash,file_type,ppat_sender_name,allow_file_type,sender_email; url: allow-url,allow-domain,block-url,block-domain; dlp: hash,text_content,sender_email,recipient_email |
+| `--items` | Click-time item route instead of list route; default false |
+
+```sh
+checkpoint-axi exception show phishing-block <id>
+checkpoint-axi exception show url <value> --type allow-url
+checkpoint-axi exception show click-time <id> --items --full
 ```
 
 ## home
