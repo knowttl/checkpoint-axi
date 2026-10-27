@@ -8,7 +8,7 @@ description: "Inspect Check Point Email Security emails, events, tasks and excep
 # checkpoint-axi
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
-C1-C8 ship local discovery, a live doctor, email, event, task and exception reads, gated email quarantine and restore, name-only event actions, and Anti-Phishing/Spam exception create, update and remove; downloads, other writes and Artium integration arrive in later slices.
+See [README's introduction](../../README.md#checkpoint-axi) for shipped capabilities and [write guidance](../../README.md#email-writes-c6) before requesting mutations.
 Use `npx -y @knowttl/checkpoint-axi` after publication without a global install.
 Bare `--version`, `-v` and `-V` print the package version.
 
@@ -60,15 +60,9 @@ Exception lists default to 50 rows; --limit or --all bounds results at 1000 rows
 No exception continuation request parameter is documented; incomplete results report complete: false without inventing scroll requests.
 Anti-Phishing requests are spaced at 1 request/second; other exception requests at 10 requests/second, including read retries.
 Undocumented exception response shapes are preserved as JSON values and marked responseSchema: unverified; live behavior remains uncommissioned.
-Exception create/update/remove support phishing-allow, phishing-block and spam-allow through the write coordinator (guide pages 61-83).
-Create/update require --input with an absolute private JSON file containing documented requestData fields directly, including at least one nonempty matching criterion.
-Update sends a replacement PUT, not a partial patch; remove takes one exception ID and sends a bodyless POST.
-Exact profile operations are exception.<kind>.<create|update|remove>; CHECKPOINT_AXI_READ_ONLY always wins, including for previews.
-Preview first; repeat with --execute and the exact --confirm from preview (payload SHA-256 for create, ID otherwise).
-Identical rules/replacements and absent removals are no-ops; incomplete or malformed preflight fails closed.
-Intent is durable before the final re-read and single send; exception sends share family rate spacers and never retry.
-Submission returns accepted with auditId, without invented task IDs; reconcile through exception list/show and never replay OUTCOME_UNKNOWN automatically.
-All exception writes remain uncommissioned until the owner tests through Artium.
+For exception create/update/remove on phishing-allow, phishing-block and spam-allow, follow [README's Anti-Phishing and Spam write guidance](../../README.md#anti-phishing-and-spam-writes-c8) for private input, replacement semantics, scope, confirmation and preflight/no-op behavior.
+For anomaly create/remove and click-time create/update/remove/remove-items, follow [README's C9 write guidance](../../README.md#anomaly-and-click-time-writes-c9) for documented inputs, exact scope and confirmation, unverified target/response contracts and read-only reconciliation.
+That C9 guidance also owns the approved clear and collection-PUT commissioning deferrals; do not infer existence, identities or no-op state from undocumented JSON or replay a mutation to retrieve truncated output.
 
 | Command | Purpose |
 |---|---|
