@@ -1,0 +1,4 @@
+{
+  "responseEnvelope": { "responseCode": 200, "recordsNumber": 1, "totalRecordsNumber": 1, "scrollId": "" },
+  "responseData": [{ "entityId": "synthetic-exception-1", "senderEmail": "sender@example.com", "subject": "Synthetic exception", "comment": "Synthetic rule", "ignoringSpfCheck": false }]
+}

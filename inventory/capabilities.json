@@ -58,20 +58,20 @@
       "pages": "49-55",
       "slice": "C5",
       "disposition": "read",
-      "reason": "GET whitelist/blacklist list and detail.",
+      "reason": "Shipped in C5 through phishing-allow and phishing-block list/show; same whitelist/blacklist routes.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "exception list and show for eight kinds",
       "pages": "55-131",
       "slice": "C5",
       "disposition": "read",
-      "reason": "All documented family and item reads, including click-time items.",
+      "reason": "Shipped in C5; documented family/item reads; anomaly show refuses ENDPOINT_UNVERIFIED pending response identity commissioning.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "email quarantine and restore",

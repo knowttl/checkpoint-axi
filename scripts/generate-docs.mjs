@@ -11,14 +11,14 @@ const commands = Object.entries(catalogue).sort(([a], [b]) => a.localeCompare(b,
 const invocation = (example) => example.replace(/^checkpoint-axi(?= |$)/, "npx -y @knowttl/checkpoint-axi");
 const table = (prefix) => ["| Command | Purpose |", "|---|---|", ...commands.map(([name, entry]) =>
   `| \`${prefix} ${name}\` | ${escape(entry.description)} |`)].join("\n");
-const reference = `${generated}\n\n# Command reference\n\n${DESCRIPTION}.\nEmail search and detail reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.\nRun each command with \`--help\` for concise help.\n\n${commands.map(([name, entry]) => [
+const reference = `${generated}\n\n# Command reference\n\n${DESCRIPTION}.\nEmail, event, task and exception reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.\nRun each command with \`--help\` for concise help.\n\n${commands.map(([name, entry]) => [
   `## ${name}`, "", entry.description, "", "| Flag | Meaning |", "|---|---|",
   ...Object.entries(entry.flags).map(([flag, meaning]) => `| \`--${flag}\` | ${escape(meaning)} |`), "",
   "```sh", ...entry.examples, "```", "",
 ].join("\n")).join("\n")}\n`;
 const skill = `---
 name: checkpoint-axi
-description: "Search and inspect Check Point Email Security emails, validate local profiles and diagnose regional API authentication with compact TOON output."
+description: "Inspect Check Point Email Security emails, events, tasks and exceptions, validate local profiles and diagnose regional API authentication with compact TOON output."
 ---
 
 ${generated}
@@ -26,7 +26,7 @@ ${generated}
 # checkpoint-axi
 
 ${DESCRIPTION}.
-C1-C3 ship local discovery, a live doctor and email search/detail reads; other API operations and Artium integration arrive in later slices.
+C1-C5 ship local discovery, a live doctor and email, event, task and exception reads; downloads, writes and Artium integration arrive in later slices.
 Use \`npx -y @knowttl/checkpoint-axi\` after publication without a global install.
 Bare \`--version\`, \`-v\` and \`-V\` print the package version.
 
@@ -49,8 +49,8 @@ Local auth status validates secret availability and file security without authen
 Do not infer API access from a local pass.
 Doctor explicitly authenticates and checks one email search page over the past 24 hours.
 It reports region, SaaS and pass/fail per check without tenant data; a failed check exits 1.
-Use --saas to override the profile SaaS for doctor or email search; the default is office365_emails.
-The owner commissions doctor once manually against a test tenant; only a pass/fail note enters the repository.
+Use --saas to override the profile SaaS for doctor, email search or event list; the default is office365_emails.
+The owner commissions all slices together through Artium after the full build; only a pass/fail note enters the repository.
 AUTH_SHAPE_UNVERIFIED requires commissioning of the undocumented token response shape (guide page 8).
 Tokens stay in memory; verified TLS and the fixed region map are mandatory.
 Every invocation is bounded by 10 HTTP requests, 8 MiB and 60 seconds including auth and retries.
@@ -62,6 +62,16 @@ Email show <id> includes payload, verdicts, actions taken and available actions 
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.
 Cursor strings are never truncated; secret-derived strings are redacted before previews.
 Downloads remain reserved for C11.
+Event list supports documented selectors and shares email search bounds and continuation; event show preserves actions and task show reads asynchronous status without polling (guide pages 30-42).
+Exception list/show accept phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp (guide pages 49-123).
+For malware, url and dlp, --type is required; run exception list --help for the documented values.
+Click-time --items selects item routes; by default list routes are used.
+Exception show takes an ID or value as a positional argument after the kind; values are encoded as one path segment.
+Anomaly show refuses with ENDPOINT_UNVERIFIED because no detail endpoint or response identity is documented (pages 83-84).
+Exception lists default to 50 rows; --limit or --all bounds results at 1000 rows within transport budgets.
+No exception continuation request parameter is documented; incomplete results report complete: false without inventing scroll requests.
+Anti-Phishing requests are spaced at 1 request/second; other exception requests at 10 requests/second, including read retries.
+Undocumented exception response shapes are preserved as JSON values and marked responseSchema: unverified; live behavior remains uncommissioned.
 
 ${table("npx -y @knowttl/checkpoint-axi")}
 `;

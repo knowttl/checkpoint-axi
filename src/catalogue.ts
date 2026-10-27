@@ -1,3 +1,5 @@
+import { exceptionFamilies } from "./exceptions.js";
+
 export const DESCRIPTION = "Inspect Check Point Email Security through compact, guarded AXI commands";
 export const SETUP_GUIDANCE = "Run checkpoint-axi config path; configure a region, clientId and clientSecret env/file SecretRef";
 
@@ -15,9 +17,17 @@ const paging = {
   all: "Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false",
   cursor: "Opaque continuation bound to profile, region, operation and selectors; repeat original selectors",
 };
+const exceptionType = `Required for ${["malware", "url", "dlp"].map((kind) => `${kind}: ${exceptionFamilies[kind as "malware" | "url" | "dlp"].types.join(",")}`).join("; ")}`;
 
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
+  "exception list": { description: "List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123)",
+    flags: { ...common, type: exceptionType,
+      items: "Click-time item routes instead of list routes; default false", limit: paging.limit, all: "Return up to 1000 rows within transport budgets; no server continuation parameter is documented" },
+    examples: ["checkpoint-axi exception list phishing-allow", "checkpoint-axi exception list malware --type hash", "checkpoint-axi exception list click-time --items --all"] },
+  "exception show": { description: "Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123)",
+    flags: { ...common, type: exceptionType, items: "Click-time item route instead of list route; default false" },
+    examples: ["checkpoint-axi exception show phishing-block <id>", "checkpoint-axi exception show url <value> --type allow-url", "checkpoint-axi exception show click-time <id> --items --full"] },
   "event list": { description: "List security events with bounded scroll continuation (API guide pages 37-42)", flags: { ...common, ...paging,
     saas: "Comma-separated SaaS overrides; default selected profile saas or office365_emails",
     "event-types": "Comma-separated event types; default unfiltered",

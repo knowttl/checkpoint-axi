@@ -1,8 +1,8 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C4 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads and event/task reads.
-Other API reads, downloads, remote writes and Artium integration arrive in later slices.
+Slices C1-C5 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads and exception reads.
+Downloads, remote writes and Artium integration arrive in later slices.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
 ## Local use
@@ -32,6 +32,8 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 | `checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
 | `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
 | `checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
+| `checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
+| `checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
 | `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 | `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
@@ -84,7 +86,7 @@ Environment profiles always disable writes and downloads.
 
 POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
 Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
-On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email, event and task reads also verify a protected DACL for the current user, SYSTEM and Administrators.
+On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email, event, task and exception reads also verify a protected DACL for the current user, SYSTEM and Administrators.
 
 ## Doctor and commissioning
 
@@ -137,6 +139,34 @@ Repeat all original event selectors with `--cursor`; the cursor preserves the or
 Event and task text is redacted before 500-character previews; use `--full` for full strings and `--fields` to select top-level fields.
 Event actions arrive in C7.
 These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior remain uncommissioned until the owner tests everything together through Artium.
+
+## Exception reads (C5)
+
+`checkpoint-axi exception list <kind>` and `exception show <kind> <id-or-value>` cover `phishing-allow`, `phishing-block`, `spam-allow`, `anomaly`, `click-time`, `malware`, `url` and `dlp` (guide pages 49-123).
+Legacy whitelist/blacklist reads use the same routes as phishing-allow/phishing-block, without duplicate commands (pages 49-60).
+Phishing and Spam lists return compact ID, sender, subject and comment fields; show preserves the full record and verifies the returned entity ID (pages 56-60, 70-74).
+Click-time defaults to list routes; add `--items` to list or show for item routes (pages 87-91).
+Malware, URL and DLP require `--type` on both commands:
+
+| Kind | Types | Guide pages |
+|---|---|---|
+| malware | `hash`, `micro_hash`, `file_type`, `ppat_sender_name`, `allow_file_type`, `sender_email` | 100-102 |
+| url | `allow-url`, `allow-domain`, `block-url`, `block-domain` | 110-112 |
+| dlp | `hash`, `text_content`, `sender_email`, `recipient_email` | 120-123 |
+
+For example, `checkpoint-axi exception show url 'https://example.com/path' --type allow-url` encodes the supplied value as one path segment.
+Anomaly has only a documented list GET, with no detail endpoint or response identity schema (pages 83-84).
+`exception show anomaly <id>` therefore refuses with `ENDPOINT_UNVERIFIED` before authentication until owner commissioning settles the contract.
+The guide also publishes no response schemas for click-time, malware, URL or DLP reads.
+These families and anomaly list preserve JSON values, marked `responseSchema: unverified`, without inventing identity fields or claiming live compatibility.
+Unknown-shape detail results are arrays of returned JSON values; documented Phishing/Spam details return one validated object.
+Live commissioning of these contracts happens later with all slices together through Artium.
+
+Lists default to 50 rows, accept `--limit <1-1000>` or `--all` capped at 1000 rows, and share the 10-request, 8 MiB and 60-second transport budgets.
+No paging request parameter is documented for these GET routes, so each command reads one response without guessing a scroll query.
+Truncation, nonempty scroll metadata or a larger advertised total returns `complete: false` and an explanation; there is no exception continuation cursor.
+Anti-Phishing list/detail requests share a 1 request/second spacer; all other exception routes share a 10 requests/second spacer within each invocation, including retries and reauthentication replays.
+Text is redacted before 500-character previews; `--full` restores complete strings, and `--fields` selects top-level output fields.
 
 ## Agent discovery
 
