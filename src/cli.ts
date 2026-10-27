@@ -3,8 +3,9 @@ import { encode } from "@toon-format/toon";
 import { DESCRIPTION } from "./catalogue.js";
 import { credentialStore, type CredentialContext } from "./profiles.js";
 import { localCommand } from "./local-commands.js";
+import type { gateway } from "./transport.js";
 
-export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
+export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: Parameters<typeof gateway>[3]; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
   const store = credentialStore(options.credentials);
   await runAxiCli({
     description: DESCRIPTION,
@@ -18,6 +19,6 @@ export async function main(argv = process.argv.slice(2), options: { credentials?
         : { error: { code: "CONFIG_INVALID", message: "Command could not complete" }, help: ["Check local configuration; run checkpoint-axi config path"] }))}\n`,
       exitCode: error instanceof AxiError && error.code === "VALIDATION_ERROR" ? 2 : 1,
     }),
-    commands: { local: () => store.redactor.value(localCommand(argv, store)) as Record<string, unknown> },
+    commands: { local: async () => store.redactor.value(await localCommand(argv, store, options.transport)) as Record<string, unknown> },
   });
 }

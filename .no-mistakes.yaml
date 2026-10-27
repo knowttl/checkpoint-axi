@@ -39,6 +39,13 @@ review:
       instructions: |
         Fixed region map, HTTPS, TLS verification and redirect:error only. No caller-supplied origins.
         Bound reads and cursors; POST searches are reads. Never replay writes.
+        Tokens stay in memory, secret-derived strings are redacted before use, and 401 permits one re-exchange per run.
+        Auth response shape is uncommissioned; reject ambiguous shapes without rendering payloads.
+        Auth, retries and delays share the request, byte and time budgets; read 429 retries stop at two.
+    - path: "src/**/doctor*"
+      instructions: |
+        One auth check and one bounded read, with region, SaaS and safe pass/fail codes only.
+        Automated verification is offline; only the owner runs commissioning against a test tenant.
     - path: "src/**/write*"
       instructions: |
         Require configured operation scope, preview, explicit execution, exact confirmation and durable intent before send.

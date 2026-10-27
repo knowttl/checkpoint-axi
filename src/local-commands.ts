@@ -3,17 +3,19 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { catalogue, DESCRIPTION, help, SETUP_GUIDANCE } from "./catalogue.js";
 import { credentialStore } from "./profiles.js";
+import { doctor } from "./doctor.js";
+import type { gateway } from "./transport.js";
 
-export function localCommand(argv: string[], store: ReturnType<typeof credentialStore>): Record<string, unknown> {
+export async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
   if (argv.length === 1 && argv[0] === "--help") return help();
-  const name = !argv.length || argv[0]?.startsWith("--") ? "home" : argv[0] === "home" ? "home" : argv.slice(0, 2).join(" ");
-  const entry = catalogue[name as keyof typeof catalogue];
+  const name = !argv.length || argv[0]?.startsWith("--") ? "home" : argv[0] === "home" || argv[0] === "doctor" ? argv[0] : argv.slice(0, 2).join(" ");
+  const entry = Object.hasOwn(catalogue, name) ? catalogue[name as keyof typeof catalogue] : undefined;
   const usage = (message = "Unknown command, argument, duplicate or invalid flag"): never => { throw new AxiError(message, "VALIDATION_ERROR", [
-    "Valid commands: home, auth status, profile list, config path; valid flags: --config <path>, --profile <name>, --fields <names>, --full, --help",
+    `Valid commands: ${Object.keys(catalogue).join(", ")}; valid flags: ${entry ? Object.keys(entry.flags).map((flag) => `--${flag}`).join(", ") : "run checkpoint-axi --help"}`,
   ]); };
-  if (!Object.hasOwn(catalogue, name)) usage();
+  if (!entry) return usage();
   const flags = new Map<string, string>();
-  const start = name === "home" ? (argv[0] === "home" ? 1 : 0) : 2;
+  const start = name === "home" ? (argv[0] === "home" ? 1 : 0) : name === "doctor" ? 1 : 2;
   for (let index = start; index < argv.length; index++) {
     const flag = argv[index]!;
     if (!flag.startsWith("--")) usage();
@@ -29,14 +31,15 @@ export function localCommand(argv: string[], store: ReturnType<typeof credential
     }
   }
   if (flags.has("--help")) return { command: name, ...entry };
-  const available = name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
+  const available = name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (name === "auth status") result = store.status(config, flags.get("--profile"));
+  if (name === "doctor") result = await doctor(store, config, flags.get("--profile"), flags.get("--saas"), transport);
+  else if (name === "auth status") result = store.status(config, flags.get("--profile"));
   else if (name === "profile list") result = store.list(config);
   else if (name === "config path") result = { config: store.configPath(config), state: store.statePath() };
   else {

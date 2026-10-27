@@ -53,14 +53,14 @@ test("installed profile status is offline and never exposes secret source detail
   expect(result.stdout + result.stderr).not.toMatch(/synthetic-packaged-secret|SYNTHETIC_SECRET|synthetic-client/);
 });
 
-test("installed hook emits local context and refuses unsupported API commands", () => {
+test("installed hook emits local context and doctor help works offline", () => {
   const hook = join(packageRoot, "bin/checkpoint-axi-hook.js");
   const result = cli([], {}, hook);
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(decode(result.stdout)).toMatchObject({ status: "not configured" });
-  const unsupported = cli(["doctor"]);
-  expect(unsupported.status).toBe(2);
-  expect(decode(unsupported.stdout)).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+  const doctor = cli(["doctor", "--help"]);
+  expect(doctor.status).toBe(0);
+  expect(decode(doctor.stdout)).toMatchObject({ command: "doctor" });
 });
 
 test("published metadata includes credential schema, inventory and generated discovery", () => {

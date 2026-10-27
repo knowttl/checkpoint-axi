@@ -1,7 +1,7 @@
 # Design and delivery boundaries
 
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
-C1 implements only the local scaffold and does not make API calls.
+C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
 The source is the [Email Security API Reference Guide, 23 October 2026](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf).
 `inventory/specs.json` pins its URL, SHA-256, byte length and page count.
@@ -12,19 +12,24 @@ Default spec checks are offline; explicit `--pdf` verification checks supplied b
 ## Credentials and transport
 
 One strict profile contains `region`, `clientId`, a `clientSecret` SecretRef, optional `saas`, optional `scope`, `downloads` and `writes`.
-`saas` defaults to `office365_emails`; API slices will expose `--saas` as a per-call override.
+`saas` defaults to `office365_emails`; `doctor` exposes `--saas` as a per-call override.
 Only the fixed seven-gateway region map is supported; profiles cannot supply an origin.
 `src/private-file.ts` owns platform read security; configuration and secret source rules follow the AXI credential standard.
 Config/profile precedence, strict env-profile completeness and private-file rules are documented in README.
-C1 has no private writes or token persistence.
+C1-C2 have no private writes or token persistence.
 All resolved secret forms are registered for raw, JSON-escaped and URL-encoded output redaction before use.
 
-C2 will add one closed HTTPS transport boundary with TLS verification, redirect refusal and a fresh `x-av-req-id` UUID per request.
+C2 provides one closed HTTPS transport boundary with TLS verification, redirect refusal and a fresh `x-av-req-id` UUID per request.
 The guide uses `POST /auth/external` with `clientId` and `accessKey` (the client secret), then Bearer authorization under `/app/hec-api/v1.0` (pages 8-10).
 Tokens stay in memory once per run with one re-exchange on 401.
 Token response shape and lifetime are undocumented; the owner will run `doctor` once manually after C2 against a test tenant.
 Only a pass/fail commissioning note may enter this public repository.
 Automated tests never contact that tenant.
+The provisional token field candidates and commissioning failure code are documented in README.
+Doctor performs one page of the default 24-hour entity search for the selected SaaS and discards the data.
+The transport normalizes object/array response data and preserves scroll metadata for the read slices.
+Auth, re-exchange and retries share a 10-request, 8 MiB and 60-second invocation budget.
+User-facing bound continuation cursors and collection row limits arrive with the C3 read commands.
 
 ## Read, write and download safety
 
@@ -51,12 +56,13 @@ Hosted downloads will reuse Artium's artifact mechanism in C12.
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Every row is planned or excluded, not executable in C1.
+Rows remain planned or excluded except the shipped C2 authentication and doctor capability.
+Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
 | Capability | Pages | Slice | Disposition | Reason |
 |---|---|---|---|---|
-| `auth exchange and doctor` | 8-9 | C2 | auth | Commission the undocumented token contract manually after C2. |
+| `auth exchange and doctor` | 8-9 | C2 | auth | Shipped in C2; commission the undocumented token contract manually. |
 | `email search and show` | 10-27 | C3 | read | GET entity detail and POST search/query with bounded scroll. |
 | `event list and show` | 34-42 | C4 | read | GET event detail and POST event/query with bounded scroll. |
 | `task show` | 30-33 | C4 | read | GET task status for asynchronous entity and event actions. |
@@ -101,5 +107,5 @@ It is a guardrail alongside staged review, not a substitute for checking public-
 Tests use real local commands, isolated HOME/XDG directories, synthetic fixtures and a deny-network preload inherited by subprocesses.
 The packaged baseline packs and installs real local dependency tarballs offline before running both bins.
 Affected-test selection always includes packaged CLI, profiles, identifier and network safety; shared infrastructure runs all tests.
-Future transport slices add a registered loopback TLS fake gateway without enabling external networking.
+C2 transport tests use a registered loopback TLS fake gateway without enabling external networking.
 There is no hosted test workflow; release publication alone runs hosted verification.

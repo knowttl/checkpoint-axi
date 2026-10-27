@@ -18,10 +18,10 @@
       "pages": "8-9",
       "slice": "C2",
       "disposition": "auth",
-      "reason": "Commission the undocumented token contract manually after C2.",
+      "reason": "Shipped in C2; commission the undocumented token contract manually.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "email search and show",
