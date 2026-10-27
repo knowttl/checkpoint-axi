@@ -91,7 +91,10 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
           if (bytes > READ_LIMITS.bytes) req.destroy(failure("RESPONSE_TOO_LARGE", "Read response byte budget exhausted"));
           else chunks.push(chunk);
         });
-        response.on("error", () => reject(failure("NETWORK_ERROR", "API response stream failed")));
+        response.on("error", () => {
+          clearTimeout(timer);
+          reject(failure("NETWORK_ERROR", "API response stream failed"));
+        });
         response.on("end", () => {
           clearTimeout(timer);
           const status = response.statusCode ?? 0;
@@ -124,7 +127,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
         if (remaining > 0) await pause(remaining);
         nextException.set(group, now() + (group === "phishing" ? 1_000 : 100));
       }
-      const response = await send(`/app/hec-api/v1.0${query.path}`, query.body, token);
+      const response = await send(`/app/hec-api/v1.0${query.path}`, query.body === undefined ? undefined : { requestData: query.body }, token);
       if (response.status === 401 && !refreshed) {
         refreshed = true;
         token = undefined;

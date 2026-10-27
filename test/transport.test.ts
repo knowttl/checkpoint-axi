@@ -33,8 +33,8 @@ test("doctor authenticates once and performs one search with fresh UUIDs and sel
   expect(calls.map((call) => call.path)).toEqual(["/auth/external", "/app/hec-api/v1.0/search/query"]);
   expect(calls[0]!.body).toEqual({ clientId: "synthetic-client", accessKey: "synthetic-secret-sentinel" });
   expect(calls[1]!.auth).toBe("Bearer synthetic-token");
-  expect(calls[1]!.body).toMatchObject({ entityFilter: { saas: "synthetic_saas" } });
-  const filter = (calls[1]!.body as { entityFilter: { startDate: string; endDate: string } }).entityFilter;
+  expect(calls[1]!.body).toMatchObject({ requestData: { entityFilter: { saas: "synthetic_saas" } } });
+  const filter = (calls[1]!.body as { requestData: { entityFilter: { startDate: string; endDate: string } } }).requestData.entityFilter;
   expect(Date.parse(filter.endDate) - Date.parse(filter.startDate)).toBe(86_400_000);
   expect(new Set(calls.map((call) => call.id)).size).toBe(2);
   expect(calls[0]!.id).toMatch(/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/);
@@ -118,7 +118,7 @@ test("reads reuse the token and resend selectors with a returned scrollId", asyn
   const first = await api.read({ path: "/search/query", body: { entityFilter } });
   await api.read({ path: "/search/query", body: { entityFilter, scrollId: first.scrollId } });
   expect(exchanges).toBe(1);
-  expect(bodies).toEqual([{ entityFilter }, { entityFilter, scrollId: "synthetic-scroll" }]);
+  expect(bodies).toEqual([{ requestData: { entityFilter } }, { requestData: { entityFilter, scrollId: "synthetic-scroll" } }]);
   expect(store.redactor.text("synthetic-token Bearer synthetic-token")).not.toContain("synthetic-token");
 });
 
@@ -155,6 +155,20 @@ test("the total deadline aborts a stalled read", async () => {
     await seen;
     await vi.advanceTimersByTimeAsync(READ_LIMITS.milliseconds);
     await reading;
+  } finally { vi.useRealTimers(); }
+});
+
+test.each(["/auth/external", "/app/hec-api/v1.0/exceptions/whitelist"])("truncated responses release the deadline timer: %s", async (path) => {
+  const { api } = await setup((request, response) => {
+    if (request.url === path) {
+      response.writeHead(200, { "content-length": "100", connection: "close" });
+      response.end("{");
+    } else response.end('{"token":"synthetic-token"}');
+  });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await expect(api.read({ path: "/exceptions/whitelist" })).rejects.toMatchObject({ code: "NETWORK_ERROR" });
+    expect(vi.getTimerCount()).toBe(0);
   } finally { vi.useRealTimers(); }
 });
 
