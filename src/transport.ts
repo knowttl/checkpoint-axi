@@ -8,7 +8,8 @@ import type { SecretRedactor } from "./redact.js";
 
 export const READ_LIMITS = { requests: 10, rows: 1_000, milliseconds: 60_000, bytes: 8 * 1024 * 1024 } as const;
 export type ReadRequest =
-  | { path: "/search/query"; body: { entityFilter: { saas: string; startDate: string; endDate: string }; scrollId?: string } }
+  | { path: "/search/query"; body: { entityFilter: { saas: string; saasEntity?: string; startDate: string; endDate: string }; entityExtendedFilter?: { saasAttrName: string; saasAttrOp: string; saasAttrValue: string }[]; scrollId?: string } }
+  | { path: `/search/entity/${string}`; body?: never }
   | { path: "/exceptions/whitelist" | "/exceptions/spam_whitelist"; body?: never };
 export type Page = { records: unknown[]; scrollId?: string; total?: number };
 type Dependencies = { agent?: Agent; now?: () => number; wait?: (milliseconds: number) => Promise<unknown> };

@@ -1,7 +1,7 @@
 # Design and delivery boundaries
 
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
-C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`.
+C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
 The source is the [Email Security API Reference Guide, 23 October 2026](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf).
 `inventory/specs.json` pins its URL, SHA-256, byte length and page count.
@@ -12,7 +12,7 @@ Default spec checks are offline; explicit `--pdf` verification checks supplied b
 ## Credentials and transport
 
 One strict profile contains `region`, `clientId`, a `clientSecret` SecretRef, optional `saas`, optional `scope`, `downloads` and `writes`.
-`saas` defaults to `office365_emails`; `doctor` exposes `--saas` as a per-call override.
+`saas` defaults to `office365_emails`; `doctor` and `email search` expose `--saas` as a per-call override.
 Only the fixed seven-gateway region map is supported; profiles cannot supply an origin.
 `src/private-file.ts` owns platform read security; configuration and secret source rules follow the AXI credential standard.
 Config/profile precedence, strict env-profile completeness and private-file rules are documented in README.
@@ -29,12 +29,14 @@ The provisional token field candidates and commissioning failure code are docume
 Doctor performs one page of the default 24-hour entity search for the selected SaaS and discards the data.
 The transport normalizes object/array response data and preserves scroll metadata for the read slices.
 Auth, re-exchange and retries share a 10-request, 8 MiB and 60-second invocation budget.
-User-facing bound continuation cursors and collection row limits arrive with the C3 read commands.
+C3 implements bound continuation cursors and collection row limits for email search.
 
 ## Read, write and download safety
 
-Read slices will decode schema-derived synthetic responses rather than copy inconsistent JSON samples.
+Email reads decode schema-derived synthetic responses rather than copy inconsistent JSON samples.
 Scroll cursors bind profile, origin, operation and selectors.
+C3 additionally binds client identity and preserves the date window and page offset without truncating the cursor.
+Within-page continuation replays the server query because the API documents no page-size control; changes in server results can affect that replay.
 Lists default to 50 rows and a 24-hour window, with a maximum 31-day window.
 `--all` stops at 10 requests, 1,000 rows, 60 seconds or 8 MiB and returns incomplete status with a continuation cursor.
 Exception requests are spaced at 1 request/second for Anti-Phishing and 10 requests/second otherwise.
@@ -56,14 +58,14 @@ Hosted downloads will reuse Artium's artifact mechanism in C12.
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Rows remain planned or excluded except the shipped C2 authentication and doctor capability.
+Rows remain planned or excluded except the shipped C2 authentication/doctor and C3 email-read capabilities.
 Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
 | Capability | Pages | Slice | Disposition | Reason |
 |---|---|---|---|---|
 | `auth exchange and doctor` | 8-9 | C2 | auth | Shipped in C2; commission the undocumented token contract manually. |
-| `email search and show` | 10-27 | C3 | read | GET entity detail and POST search/query with bounded scroll. |
+| `email search and show` | 10-27 | C3 | read | Shipped in C3; GET entity detail and POST search/query with bounded scroll. |
 | `event list and show` | 34-42 | C4 | read | GET event detail and POST event/query with bounded scroll. |
 | `task show` | 30-33 | C4 | read | GET task status for asynchronous entity and event actions. |
 | `legacy exception reads` | 49-55 | C5 | read | GET whitelist/blacklist list and detail. |

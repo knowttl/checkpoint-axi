@@ -11,6 +11,18 @@ const common = {
 
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
+  "email search": { description: "Search emails with a bounded date window and scroll continuation (API guide pages 18-27)", flags: { ...common,
+    saas: "SaaS override; default selected profile saas or office365_emails",
+    "saas-entity": "Optional SaaS entity type selector",
+    "start-date": "ISO timestamp with timezone; default 24 hours before end-date; maximum window 31 days",
+    "end-date": "ISO timestamp with timezone; default now",
+    filter: "JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20)",
+    limit: "Maximum rows; default 50, range 1-1000; cannot combine with --all",
+    all: "Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false",
+    cursor: "Opaque continuation bound to profile, region, operation and selectors; repeat original selectors",
+  }, examples: ["checkpoint-axi email search", "checkpoint-axi email search --all --saas office365_emails", "checkpoint-axi email search --cursor <cursor>"] },
+  "email show": { description: "Show one email with verdicts, actions and available actions (API guide pages 10-18)", flags: common,
+    examples: ["checkpoint-axi email show <id>", "checkpoint-axi email show <id> --full"] },
   doctor: { description: "Check regional API authentication and one bounded email search without printing tenant data", flags: { ...common, saas: "SaaS override; default selected profile saas or office365_emails" },
     examples: ["checkpoint-axi doctor", "checkpoint-axi doctor --profile example --saas office365_emails"] },
   home: { description: "Show local profile context without resolving secrets or making API calls", flags: common,
