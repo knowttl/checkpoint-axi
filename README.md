@@ -1,8 +1,8 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-This is slice C1 of 12: an offline scaffold with local profile discovery and validation.
-There are no Check Point API calls, live health checks, downloads or remote writes in this slice.
+Slices C1-C2 of 12 ship local profile discovery, regional authentication and a bounded live `doctor` check.
+Email reads, downloads, remote writes and Artium integration arrive in later slices.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
 ## Local use
@@ -27,6 +27,7 @@ Strings have 500-character previews; `--full` returns complete strings and `--fi
 |---|---|
 | `checkpoint-axi auth status` | Validate the selected local profile and secret source without API calls |
 | `checkpoint-axi config path` | Show config and state paths without reading files; --profile does not affect paths |
+| `checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
 | `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 <!-- command-registry:end -->
@@ -37,7 +38,7 @@ Strings have 500-character previews; `--full` returns complete strings and `--fi
 Config defaults to `$XDG_CONFIG_HOME/checkpoint-axi/config.json` (or `~/.config/checkpoint-axi/config.json`) on Linux/macOS, and `%APPDATA%\checkpoint-axi\config.json` on Windows.
 State defaults to `$XDG_STATE_HOME/checkpoint-axi` (or `~/.local/state/checkpoint-axi`), and `%LOCALAPPDATA%\checkpoint-axi` on Windows.
 Windows ignores XDG variables.
-No command discovers config from the current directory or writes configuration in C1.
+No command discovers config from the current directory or writes configuration.
 
 Create a config file with this synthetic shape and protect it from group/other writes:
 
@@ -64,7 +65,8 @@ Omitting `clientSecret` defaults its reference to `CHECKPOINT_AXI_CLIENT_SECRET`
 It confirms local readiness, not API authentication.
 `profile list` and home never resolve secret files.
 Supported regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; there is no origin override.
-Optional `saas` defaults to `office365_emails`, and optional `scope` is reserved for downloads.
+Optional `saas` defaults to `office365_emails`; `doctor --saas <name>` overrides it for that call.
+Optional `scope` is reserved for downloads.
 The host-facing [credential schema](axi-credential.schema.json) describes one strict profile.
 
 Config precedence is `--config`, then `CHECKPOINT_AXI_CONFIG`, then the platform path.
@@ -73,11 +75,31 @@ An env profile requires `CHECKPOINT_AXI_REGION`, `CHECKPOINT_AXI_CLIENT_ID` and 
 File-selected metadata never mixes with env-profile fields, though an explicit SecretRef can name an environment variable.
 Environment profiles always disable writes and downloads.
 `CHECKPOINT_AXI_READ_ONLY` accepts `1`/`true` or `0`/`false` case-insensitively; any other value fails closed.
-`CHECKPOINT_AXI_WRITE_LOG` reserves the later write-journal path override; C1 creates no journal.
+`CHECKPOINT_AXI_WRITE_LOG` reserves the later write-journal path override; no journal is created yet.
 
 POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
 Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
-On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status` also verifies a protected DACL for the current user, SYSTEM and Administrators.
+On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status` and `doctor` also verify a protected DACL for the current user, SYSTEM and Administrators.
+
+## Doctor and commissioning
+
+`checkpoint-axi doctor --profile <name>` explicitly contacts the selected public regional gateway.
+It authenticates and runs one page of email search over the past 24 hours for the selected SaaS.
+It reports region, SaaS and pass/fail for auth and read, without email data or credentials; a failed check exits 1.
+Home, the hook, command help and `auth status` remain offline.
+The owner must run `doctor` once by hand against a test tenant after C2 to commission authentication (Q4).
+Only a pass/fail commissioning note enters this public repository, never tenant identifiers, raw responses, secrets or tokens.
+No commissioning run has been performed by the automated tests.
+
+The vendor guide does not document the token response shape or lifetime (page 8).
+The provisional parser accepts one distinct nonempty printable ASCII token without whitespace from `token`, `access_token` or `accessToken` at the root or within `data` or `responseData`.
+Unsupported, conflicting or invalid values fail with `AUTH_SHAPE_UNVERIFIED`, requiring owner commissioning rather than printing the response.
+Tokens stay in memory, are never cached to disk, and are exchanged once per invocation with at most one re-exchange on an API 401.
+All requests carry a new request UUID; authenticated API calls carry Bearer authorization.
+TLS certificate verification stays enabled and redirects are refused.
+The entire invocation is bounded by 10 HTTP requests, 8 MiB of response bytes and 60 seconds, including auth, re-exchange, retries and delays.
+Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` within that budget.
+Exception reads use separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
 
 ## Agent discovery
 
@@ -90,7 +112,7 @@ npx skills add knowttl/checkpoint-axi --skill checkpoint-axi
 ```
 
 Neither path is needed for ordinary CLI use.
-Automatic hook installation and hosted Artium integration are not shipped by C1.
+Automatic hook installation and hosted Artium integration are not shipped yet.
 
 ## Development and testing
 
@@ -105,7 +127,7 @@ corepack pnpm run identifiers:check
 
 Tests deny external networking, isolate local configuration and exercise an installed tarball offline.
 The affected-test selector includes the fixed safety baseline and runs the full suite for shared infrastructure changes.
-To regenerate catalogue docs or the planned capability inventory:
+To regenerate catalogue docs or the capability inventory:
 
 ```sh
 corepack pnpm run build

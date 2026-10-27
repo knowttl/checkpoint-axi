@@ -18,10 +18,10 @@ const design = readFileSync(new URL("docs/design.md", root), "utf8");
 const rows = [...design.matchAll(/^\| `([^`]+)` \| (\d+(?:-\d+)?) \| (C\d+) \| (read|write|download|auth|unverified|excluded) \| (.*?) \|$/gm)];
 if (rows.length !== 20 || new Set(rows.map((row) => row[1])).size !== rows.length) throw new Error("Incomplete or duplicated PDF coverage ledger");
 const capabilities = { schemaVersion: 1, sources, coverage: rows.map(([, capability, pages, slice, disposition, reason]) => ({
-  capability, pages, slice, disposition, reason, source: source.id, sourceSha256: source.sha256, executable: false,
+  capability, pages, slice, disposition, reason, source: source.id, sourceSha256: source.sha256, executable: slice === "C2",
 })) };
 const content = `${JSON.stringify(capabilities, null, 2)}\n`;
 const target = new URL("inventory/capabilities.json", root);
 if (mode === "--generate") writeFileSync(target, content);
 else if (readFileSync(target, "utf8") !== content) throw new Error("Stale capability inventory; run spec:generate");
-console.log(`${mode === "--generate" ? "Generated" : "Verified"} PDF provenance and ${rows.length} planned capability groups offline${pdfIndex === -1 ? "; PDF bytes not rechecked (not redistributed)" : "; PDF byte hash verified"}`);
+console.log(`${mode === "--generate" ? "Generated" : "Verified"} PDF provenance and ${rows.length} capability groups offline${pdfIndex === -1 ? "; PDF bytes not rechecked (not redistributed)" : "; PDF byte hash verified"}`);

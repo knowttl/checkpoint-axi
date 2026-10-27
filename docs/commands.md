@@ -3,7 +3,7 @@
 # Command reference
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
-C1 commands are local and never contact Check Point.
+Doctor explicitly checks regional API authentication and one bounded email search; all other shipped commands are local.
 Run each command with `--help` for concise help.
 
 ## auth status
@@ -38,6 +38,24 @@ Show config and state paths without reading files; --profile does not affect pat
 ```sh
 checkpoint-axi config path
 checkpoint-axi config path --fields config
+```
+
+## doctor
+
+Check regional API authentication and one bounded email search without printing tenant data
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--saas` | SaaS override; default selected profile saas or office365_emails |
+
+```sh
+checkpoint-axi doctor
+checkpoint-axi doctor --profile example --saas office365_emails
 ```
 
 ## home

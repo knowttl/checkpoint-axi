@@ -11,6 +11,8 @@ const common = {
 
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
+  doctor: { description: "Check regional API authentication and one bounded email search without printing tenant data", flags: { ...common, saas: "SaaS override; default selected profile saas or office365_emails" },
+    examples: ["checkpoint-axi doctor", "checkpoint-axi doctor --profile example --saas office365_emails"] },
   home: { description: "Show local profile context without resolving secrets or making API calls", flags: common,
     examples: ["checkpoint-axi", "checkpoint-axi home --profile example"] },
   "auth status": { description: "Validate the selected local profile and secret source without API calls", flags: common,
