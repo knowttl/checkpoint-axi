@@ -1,7 +1,7 @@
 # Design and delivery boundaries
 
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
-C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads; C6 adds the write coordinator and email quarantine/restore; C7 adds name-only event actions; C8 adds Anti-Phishing and Spam exception writes; C9 adds anomaly and click-time writes with the commissioning deferrals below.
+See the [API coverage ledger](#api-coverage-ledger) for shipped capabilities and commissioning deferrals by slice.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
 The source is the [Email Security API Reference Guide, 23 October 2026](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf).
 `inventory/specs.json` pins its URL, SHA-256, byte length and page count.

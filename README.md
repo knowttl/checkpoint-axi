@@ -335,7 +335,7 @@ Updates take no positional ID: `exception_type` and `exception_str` in the body 
 Families map to `checkpoint2`, `avanan_url` and `avanan_dlp` under `/sectool-exceptions/`.
 The private input file contains requestData fields directly, without an envelope.
 Create requires `exception_type`, `exception_str`, `comment`, `entity_type`, `entity_id`, `file_name`, `created_by_email` and boolean `is_exclusive`.
-Malware create additionally requires `exception_payload: { "condition": "with_link" }`.
+Malware create additionally requires `exception_payload` with a nonempty string `condition`, for example `{ "condition": "with_link" }`.
 Update requires only `exception_type`, `exception_str`, `comment` and `exception_payload` with a nonempty string `condition`.
 Types are the same family-specific values listed in [exception reads](#exception-reads-c5); type, value and entity selectors must be nonempty.
 Unknown fields are rejected, including nested payload fields.
