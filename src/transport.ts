@@ -10,6 +10,8 @@ export const READ_LIMITS = { requests: 10, rows: 1_000, milliseconds: 60_000, by
 export type ReadRequest =
   | { path: "/search/query"; body: { entityFilter: { saas: string; saasEntity?: string; startDate: string; endDate: string }; entityExtendedFilter?: { saasAttrName: string; saasAttrOp: string; saasAttrValue: string }[]; scrollId?: string } }
   | { path: `/search/entity/${string}`; body?: never }
+  | { path: "/event/query"; body: { startDate?: string; endDate?: string; saas?: string[]; eventTypes?: string[]; eventStates?: string[]; severities?: string[]; eventIds?: string[]; confidenceIndicator?: string; description?: string; scrollId?: string } }
+  | { path: `/event/${string}` | `/task/${string}`; body?: never }
   | { path: "/exceptions/whitelist" | "/exceptions/spam_whitelist"; body?: never };
 export type Page = { records: unknown[]; scrollId?: string; total?: number };
 type Dependencies = { agent?: Agent; now?: () => number; wait?: (milliseconds: number) => Promise<unknown> };

@@ -1,7 +1,7 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C3 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check and email search/detail reads.
+Slices C1-C4 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads and event/task reads.
 Other API reads, downloads, remote writes and Artium integration arrive in later slices.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
@@ -30,8 +30,11 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 | `checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
 | `checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
 | `checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
+| `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
+| `checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
 | `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
+| `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
 <!-- command-registry:end -->
 
 ## Profiles
@@ -67,7 +70,7 @@ Omitting `clientSecret` defaults its reference to `CHECKPOINT_AXI_CLIENT_SECRET`
 It confirms local readiness, not API authentication.
 `profile list` and home never resolve secret files.
 Supported regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; there is no origin override.
-Optional `saas` defaults to `office365_emails`; `doctor` and `email search` accept `--saas <name>` to override it for that call.
+Optional `saas` defaults to `office365_emails`; `doctor`, `email search` and `event list` accept `--saas <name>` to override it for that call.
 Optional `scope` is reserved for downloads.
 The host-facing [credential schema](axi-credential.schema.json) describes one strict profile.
 
@@ -89,7 +92,7 @@ On Windows, regular files and reparse points are checked without interpreting mo
 It authenticates and runs one page of email search over the past 24 hours for the selected SaaS.
 It reports region, SaaS and pass/fail for auth and read, without email data or credentials; a failed check exits 1.
 Home, the hook, command help and `auth status` remain offline.
-The owner must run `doctor` once by hand against a test tenant after C2 to commission authentication (Q4).
+The owner will commission authentication and all other slices together through Artium after the full build (Q4).
 Only a pass/fail commissioning note enters this public repository, never tenant identifiers, raw responses, secrets or tokens.
 No commissioning run has been performed by the automated tests.
 
@@ -120,6 +123,20 @@ Continuation at a whole-page boundary can report `complete: true` on reaching th
 Treat cursors as sensitive search state and do not edit them.
 Cursor strings are never truncated; email text is redacted before 500-character previews, with `--full` for complete text.
 Downloads remain reserved for C11.
+
+## Event and task reads (C4)
+
+`checkpoint-axi event list` returns compact ID, type, state and severity rows (guide pages 37-42).
+`checkpoint-axi event show <id>` preserves event details, action history and available actions (guide pages 34-37).
+`checkpoint-axi task show <id>` returns task status, progress and per-action details for asynchronous actions (guide pages 30-33).
+Task states are `init`, `inprogress`, `completed`, `failed`, `stopped` and `paused`; task show performs one read without polling.
+Event list accepts comma-separated `--event-types`, `--event-states`, `--severities`, `--event-ids` and `--saas`, plus `--confidence-indicator` and `--description` text selectors.
+SaaS defaults to the selected profile's value or `office365_emails`; other event selectors default to unfiltered.
+Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](#email-reads-c3).
+Repeat all original event selectors with `--cursor`; the cursor preserves the original date window.
+Event and task text is redacted before 500-character previews; use `--full` for full strings and `--fields` to select top-level fields.
+Event actions arrive in C7.
+These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior remain uncommissioned until the owner tests everything together through Artium.
 
 ## Agent discovery
 

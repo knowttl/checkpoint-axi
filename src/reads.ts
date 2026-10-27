@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { credentialStore } from "./profiles.js";
 import { REGIONS } from "./regions.js";
-import { gateway, READ_LIMITS } from "./transport.js";
+import { gateway, READ_LIMITS, type ReadRequest } from "./transport.js";
 
 const day = 86_400_000;
 const timestamp = z.iso.datetime({ offset: true });
@@ -17,11 +17,19 @@ const entity = z.object({ entityInfo: z.object({ entityId: z.string().min(1), en
   entityPayload: z.object({ subject: z.string().optional() }).passthrough(),
   entitySecurityResults: z.object({ combinedVerdict: z.unknown().optional() }).passthrough().optional(),
 }).passthrough();
-const invalid = (message: string): never => { throw new AxiError(message, "VALIDATION_ERROR", ["Run checkpoint-axi email search --help or checkpoint-axi email show --help"]); };
+// Event and task fields: guide pages 31-32, 35-36 and 40-41.
+const event = z.object({ eventId: z.string().min(1), type: z.string(), state: z.string(), severity: z.string() }).passthrough();
+const task = z.object({ id: z.union([z.string().min(1), z.number().int().nonnegative()]),
+  status: z.enum(["init", "inprogress", "completed", "failed", "stopped", "paused"]),
+  actions: z.array(z.object({ action_status: z.string() }).passthrough()),
+  progress: z.number().nonnegative(), total: z.number().nonnegative(),
+}).passthrough();
+const invalid = (message: string): never => { throw new AxiError(message, "VALIDATION_ERROR", ["Run checkpoint-axi <email search|email show|event list|event show|task show> --help"]); };
 
-export async function emailRead(name: "email search" | "email show", id: string | undefined, flags: Map<string, string>,
+export async function readCommand(name: "email search" | "email show" | "event list" | "event show" | "task show", id: string | undefined, flags: Map<string, string>,
   store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
-  if (name === "email show" && (!id || !/^[A-Za-z0-9_-]+$/.test(id))) invalid("email show requires one entity ID containing letters, digits, underscores or hyphens");
+  const isEvent = name.startsWith("event ");
+  if (name.endsWith(" show") && (!id || !/^[A-Za-z0-9_-]+$/.test(id))) invalid(`${name} requires one ID containing letters, digits, underscores or hyphens`);
   const limitText = flags.get("--limit") ?? "50";
   if (!/^[1-9][0-9]*$/.test(limitText) || Number(limitText) > READ_LIMITS.rows) invalid("--limit must be an integer from 1 to 1000");
   if (flags.has("--all") && flags.has("--limit")) invalid("Use either --all or --limit");
@@ -49,44 +57,67 @@ export async function emailRead(name: "email search" | "email show", id: string 
   const window = Date.parse(end) - Date.parse(start);
   if (window <= 0 || window > 31 * day) invalid("Search window must be positive and at most 31 days");
   for (const flag of ["--saas", "--saas-entity"]) if (flags.has(flag) && !flags.get(flag)!.trim()) invalid(`${flag} must not be blank`);
+  const eventSelectors: Extract<ReadRequest, { path: "/event/query" }>["body"] = {};
+  for (const [flag, key] of [["event-types", "eventTypes"], ["event-states", "eventStates"], ["severities", "severities"], ["event-ids", "eventIds"], ["saas", "saas"]] as const) {
+    if (!isEvent || !flags.has(`--${flag}`)) continue;
+    const values = flags.get(`--${flag}`)!.split(",").map((value) => value.trim());
+    if (values.some((value) => !value)) invalid(`--${flag} must contain nonempty comma-separated values`);
+    eventSelectors[key] = values;
+  }
+  for (const [flag, key] of [["confidence-indicator", "confidenceIndicator"], ["description", "description"]] as const) {
+    if (!flags.has(`--${flag}`)) continue;
+    const value = flags.get(`--${flag}`)!.trim();
+    if (!value) invalid(`--${flag} must not be blank`);
+    eventSelectors[key] = value;
+  }
   store.readOnly();
   const profile = store.select(store.load(flags.get("--config"), true).config, flags.get("--profile"));
   const saas = flags.get("--saas")?.trim() ?? profile.saas;
   const entityFilter = { saas, ...(flags.has("--saas-entity") ? { saasEntity: flags.get("--saas-entity")!.trim() } : {}), startDate: start, endDate: end };
+  const selectors = { ...eventSelectors, saas: eventSelectors.saas ?? [saas], startDate: start, endDate: end };
   const binding = createHash("sha256").update(JSON.stringify({ profile: profile.name, client: profile.clientId,
-    origin: REGIONS[profile.region], operation: name, entityFilter, extended })).digest("hex");
+    origin: REGIONS[profile.region], operation: name, ...(isEvent ? { selectors } : { entityFilter, extended }) })).digest("hex");
   if (cursor && cursor.binding !== binding) invalid("Cursor does not match this profile, region or search selectors; repeat the original selectors");
   const api = gateway(profile, store.credentials(profile, true), store.redactor, transport);
-  if (name === "email show") {
-    const page = await api.read({ path: `/search/entity/${id!}` });
-    if (page.records.length === 0) throw new AxiError("Email was not found", "NOT_FOUND", []);
-    const parsed = entity.safeParse(page.records[0]);
-    if (page.records.length !== 1 || !parsed.success || parsed.data.entityInfo.entityId !== id) throw new AxiError("Invalid email detail response", "RESPONSE_INVALID", []);
-    return { email: parsed.data };
+  if (name.endsWith(" show")) {
+    const kind = name.split(" ")[0]!;
+    const page = await api.read({ path: name === "task show" ? `/task/${id!}` : isEvent ? `/event/${id!}` : `/search/entity/${id!}` });
+    if (page.records.length === 0) throw new AxiError(`${kind} was not found`, "NOT_FOUND", []);
+    const parsed = (name === "task show" ? task : isEvent ? event : entity).safeParse(page.records[0]);
+    if (page.records.length !== 1 || !parsed.success) throw new AxiError(`Invalid ${kind} detail response`, "RESPONSE_INVALID", []);
+    const record = page.records[0] as Record<string, unknown>;
+    const returnedId = name === "task show" ? String(record.id) : isEvent ? record.eventId : (record.entityInfo as { entityId?: string } | undefined)?.entityId;
+    if (returnedId !== id) throw new AxiError(`Invalid ${kind} detail response`, "RESPONSE_INVALID", []);
+    return { [kind]: parsed.data };
   }
-  const emails: Record<string, unknown>[] = [];
+  const results: Record<string, unknown>[] = [];
   let scroll = cursor?.scroll;
   let offset = cursor?.offset ?? 0;
   let replayRisk = cursor?.replayRisk ?? offset > 0;
   let total: number | undefined;
   let exhausted = false;
-  while (emails.length < limit) {
+  while (results.length < limit) {
     let page;
     try {
-      page = await api.read({ path: "/search/query", body: { entityFilter,
-        ...(extended === undefined ? {} : { entityExtendedFilter: extended }), ...(scroll === undefined ? {} : { scrollId: scroll }) } });
+      page = await api.read(isEvent ? { path: "/event/query", body: { ...selectors, ...(scroll === undefined ? {} : { scrollId: scroll }) } }
+        : { path: "/search/query", body: { entityFilter,
+          ...(extended === undefined ? {} : { entityExtendedFilter: extended }), ...(scroll === undefined ? {} : { scrollId: scroll }) } });
     } catch (error) {
-      if (emails.length && error instanceof AxiError && ["REQUEST_BUDGET", "TIME_BUDGET", "RESPONSE_TOO_LARGE"].includes(error.code)) break;
+      if (results.length && error instanceof AxiError && ["REQUEST_BUDGET", "TIME_BUDGET", "RESPONSE_TOO_LARGE"].includes(error.code)) break;
       throw error;
     }
-    const parsed = z.array(entity).safeParse(page.records);
-    if (!parsed.success || offset > page.records.length) throw new AxiError("Invalid email search response", "RESPONSE_INVALID", []);
+    const parsed = z.array(isEvent ? event : entity).safeParse(page.records);
+    if (!parsed.success || offset > page.records.length) throw new AxiError("Invalid search response", "RESPONSE_INVALID", []);
     // Never wrap an echoed credential in a reversible continuation cursor.
     if (page.scrollId && store.redactor.text(page.scrollId) !== page.scrollId) throw new AxiError("Unsafe API scrollId", "RESPONSE_INVALID", []);
     total = page.total ?? total;
-    const rows = parsed.data.slice(offset, offset + limit - emails.length);
-    emails.push(...rows.map((record) => ({ id: record.entityInfo.entityId, subject: record.entityPayload.subject ?? "",
-      state: record.entityInfo.entityActionState ?? "", verdict: record.entitySecurityResults?.combinedVerdict ?? null })));
+    const rows = parsed.data.slice(offset, offset + limit - results.length);
+    results.push(...rows.map((record) => {
+      if (isEvent) { const value = event.parse(record); return { id: value.eventId, type: value.type, state: value.state, severity: value.severity }; }
+      const value = entity.parse(record);
+      return { id: value.entityInfo.entityId, subject: value.entityPayload.subject ?? "",
+        state: value.entityInfo.entityActionState ?? "", verdict: value.entitySecurityResults?.combinedVerdict ?? null };
+    }));
     offset += rows.length;
     if (offset < page.records.length) { replayRisk = true; break; }
     if (!page.scrollId) { exhausted = true; break; }
@@ -95,9 +126,9 @@ export async function emailRead(name: "email search" | "email show", id: string 
   }
   const next = exhausted ? undefined : Buffer.from(JSON.stringify({ version: 1, binding, start, end, scroll, offset,
     ...(replayRisk ? { replayRisk: true } : {}) })).toString("base64url");
-  return { emails, count: emails.length, ...(total === undefined ? {} : { total }), complete: exhausted && !replayRisk,
+  return { [isEvent ? "events" : "emails"]: results, count: results.length, ...(total === undefined ? {} : { total }), complete: exhausted && !replayRisk,
     ...(replayRisk ? { reason: "replay-may-skip-or-repeat" } : {}), ...(next ? { cursor: next } : {}),
-    help: [...(emails.length ? ["Run checkpoint-axi email show <id> for verdicts, actions and available actions"] : ["No emails matched this search window and selectors"]),
+    help: [...(results.length ? [isEvent ? "Run checkpoint-axi event show <id> for event details and available actions" : "Run checkpoint-axi email show <id> for verdicts, actions and available actions"] : [`No ${isEvent ? "events" : "emails"} matched this search window and selectors`]),
       ...(next ? ["Repeat this search with --cursor <cursor> and the original selectors to continue"] : []),
       ...(replayRisk ? ["Results changed between calls may be skipped or repeated during page replay"] : [])] };
 }

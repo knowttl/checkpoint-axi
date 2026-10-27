@@ -38,20 +38,20 @@
       "pages": "34-42",
       "slice": "C4",
       "disposition": "read",
-      "reason": "GET event detail and POST event/query with bounded scroll.",
+      "reason": "Shipped in C4; GET event detail and POST event/query with bounded scroll.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "task show",
       "pages": "30-33",
       "slice": "C4",
       "disposition": "read",
-      "reason": "GET task status for asynchronous entity and event actions.",
+      "reason": "Shipped in C4; GET task status and per-action details for asynchronous actions.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "legacy exception reads",

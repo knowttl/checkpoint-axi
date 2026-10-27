@@ -53,5 +53,8 @@ Downloads remain reserved for C11.
 | `npx -y @knowttl/checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
 | `npx -y @knowttl/checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
 | `npx -y @knowttl/checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
+| `npx -y @knowttl/checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
+| `npx -y @knowttl/checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
 | `npx -y @knowttl/checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `npx -y @knowttl/checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
+| `npx -y @knowttl/checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |

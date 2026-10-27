@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { catalogue, DESCRIPTION, help, SETUP_GUIDANCE } from "./catalogue.js";
 import { credentialStore } from "./profiles.js";
 import { doctor } from "./doctor.js";
-import { emailRead } from "./email.js";
+import { readCommand } from "./reads.js";
 import type { gateway } from "./transport.js";
 
 export async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
@@ -16,7 +16,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   ]); };
   if (!entry) return usage();
   const flags = new Map<string, string>();
-  const entityId = name === "email show" && !argv[2]?.startsWith("--") ? argv[2] : undefined;
+  const entityId = name.endsWith(" show") && !argv[2]?.startsWith("--") ? argv[2] : undefined;
   const start = name === "home" ? (argv[0] === "home" ? 1 : 0) : name === "doctor" ? 1 : entityId === undefined ? 2 : 3;
   for (let index = start; index < argv.length; index++) {
     const flag = argv[index]!;
@@ -33,7 +33,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     }
   }
   if (flags.has("--help")) return { command: name, ...entry };
-  const available = name === "email search" ? ["emails", "count", "total", "complete", "reason", "cursor", "help"] : name === "email show" ? ["email"]
+  const available = name === "email search" || name === "event list" ? [name === "event list" ? "events" : "emails", "count", "total", "complete", "reason", "cursor", "help"] : name.endsWith(" show") ? [name.split(" ")[0]!]
     : name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];
@@ -41,7 +41,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (name === "email search" || name === "email show") result = await emailRead(name, entityId, flags, store, transport);
+  if (name === "email search" || name === "email show" || name === "event list" || name === "event show" || name === "task show") result = await readCommand(name, entityId, flags, store, transport);
   else if (name === "doctor") result = await doctor(store, config, flags.get("--profile"), flags.get("--saas"), transport);
   else if (name === "auth status") result = store.status(config, flags.get("--profile"));
   else if (name === "profile list") result = store.list(config);
