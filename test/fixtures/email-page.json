@@ -1,0 +1,27 @@
+{
+  "responseEnvelope": {
+    "requestId": "00000000-0000-4000-8000-000000000002",
+    "responseCode": 0,
+    "recordsNumber": 1,
+    "totalRecordsNumber": 1,
+    "scrollId": ""
+  },
+  "responseData": [{
+    "entityInfo": {
+      "entityId": "synthetic-email-1",
+      "saas": "office365_emails",
+      "saasEntityType": "office365_emails_email",
+      "entityCreated": "2026-01-01T12:00:00.000Z",
+      "entityActionState": "quarantined"
+    },
+    "entityPayload": {
+      "subject": "Synthetic message",
+      "fromEmail": "sender@example.test",
+      "to": ["recipient@example.test"],
+      "isQuarantined": true
+    },
+    "entitySecurityResults": { "combinedVerdict": { "ap": "phishing", "av": "clean" } },
+    "entityActions": [{ "entityActionName": "quarantine", "entityActionState": "completed" }],
+    "entityAvailableActions": [{ "entityActionName": "restore", "entityActionParam": "" }]
+  }]
+}

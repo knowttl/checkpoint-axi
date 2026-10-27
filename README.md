@@ -1,8 +1,8 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C2 of 12 ship local profile discovery, regional authentication and a bounded live `doctor` check.
-Email reads, downloads, remote writes and Artium integration arrive in later slices.
+Slices C1-C3 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check and email search/detail reads.
+Other API reads, downloads, remote writes and Artium integration arrive in later slices.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
 ## Local use
@@ -20,7 +20,7 @@ node bin/checkpoint-axi.js auth status --help
 
 Output is TOON; errors use stable codes and exit 1, while invalid command syntax or flags exit 2.
 Bare `--version`, `-v` and `-V` print the version without loading the command graph.
-Strings have 500-character previews; `--full` returns complete strings and `--fields` selects output fields.
+`--fields` selects output fields; see [email reads](#email-reads-c3) for string previews and continuation behavior.
 
 <!-- command-registry:start -->
 | Command | Purpose |
@@ -28,6 +28,8 @@ Strings have 500-character previews; `--full` returns complete strings and `--fi
 | `checkpoint-axi auth status` | Validate the selected local profile and secret source without API calls |
 | `checkpoint-axi config path` | Show config and state paths without reading files; --profile does not affect paths |
 | `checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
+| `checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
+| `checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
 | `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 <!-- command-registry:end -->
@@ -65,7 +67,7 @@ Omitting `clientSecret` defaults its reference to `CHECKPOINT_AXI_CLIENT_SECRET`
 It confirms local readiness, not API authentication.
 `profile list` and home never resolve secret files.
 Supported regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; there is no origin override.
-Optional `saas` defaults to `office365_emails`; `doctor --saas <name>` overrides it for that call.
+Optional `saas` defaults to `office365_emails`; `doctor` and `email search` accept `--saas <name>` to override it for that call.
 Optional `scope` is reserved for downloads.
 The host-facing [credential schema](axi-credential.schema.json) describes one strict profile.
 
@@ -79,7 +81,7 @@ Environment profiles always disable writes and downloads.
 
 POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
 Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
-On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status` and `doctor` also verify a protected DACL for the current user, SYSTEM and Administrators.
+On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email reads also verify a protected DACL for the current user, SYSTEM and Administrators.
 
 ## Doctor and commissioning
 
@@ -100,6 +102,24 @@ TLS certificate verification stays enabled and redirects are refused.
 The entire invocation is bounded by 10 HTTP requests, 8 MiB of response bytes and 60 seconds, including auth, re-exchange, retries and delays.
 Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` within that budget.
 Exception reads use separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
+
+## Email reads (C3)
+
+`checkpoint-axi email search` reads compact ID, subject, action state and combined verdict rows (guide pages 18-27).
+`checkpoint-axi email show <id>` returns the entity payload, security results, actions taken and available actions (guide pages 10-18).
+Search defaults to the past 24 hours and 50 rows; `--start-date` and `--end-date` accept ISO timestamps with timezones, with a positive window of at most 31 days.
+`--saas` overrides the selected profile and `--saas-entity` optionally selects the entity type.
+`--filter` accepts a JSON array of the documented `saasAttrName`, `saasAttrOp` and `saasAttrValue` filters (guide pages 19-20).
+For example, `--filter '[{"saasAttrName":"entityPayload.subject","saasAttrOp":"contains","saasAttrValue":"Synthetic"}]'` selects a subject substring.
+Use `--limit <1-1000>` or `--all`, which stops at 1,000 rows, 10 HTTP requests, 60 seconds or 8 MiB, including authentication and retries.
+Incomplete searches return `complete: false`; when an opaque `cursor` is present, repeat with `--cursor <cursor>` and the same original selectors to continue.
+Cursors preserve the original window, bind profile/client identity, regional origin, operation and selectors, and retain an offset when a row limit splits a server page.
+The API has no page-size parameter, so continuation within a page replays that page; results changed between calls may be skipped or repeated.
+Searches that split a page and all their continuations report `complete: false` with `reason: replay-may-skip-or-repeat`, even after reaching the final page, when no cursor is returned.
+Continuation at a whole-page boundary can report `complete: true` on reaching the final page if no earlier page was split.
+Treat cursors as sensitive search state and do not edit them.
+Cursor strings are never truncated; email text is redacted before 500-character previews, with `--full` for complete text.
+Downloads remain reserved for C11.
 
 ## Agent discovery
 

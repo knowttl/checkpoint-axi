@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { catalogue, DESCRIPTION, help, SETUP_GUIDANCE } from "./catalogue.js";
 import { credentialStore } from "./profiles.js";
 import { doctor } from "./doctor.js";
+import { emailRead } from "./email.js";
 import type { gateway } from "./transport.js";
 
 export async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
@@ -15,7 +16,8 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   ]); };
   if (!entry) return usage();
   const flags = new Map<string, string>();
-  const start = name === "home" ? (argv[0] === "home" ? 1 : 0) : name === "doctor" ? 1 : 2;
+  const entityId = name === "email show" && !argv[2]?.startsWith("--") ? argv[2] : undefined;
+  const start = name === "home" ? (argv[0] === "home" ? 1 : 0) : name === "doctor" ? 1 : entityId === undefined ? 2 : 3;
   for (let index = start; index < argv.length; index++) {
     const flag = argv[index]!;
     if (!flag.startsWith("--")) usage();
@@ -23,7 +25,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (flag === "--help" || flag === "--full") flags.set(flag, "true");
+    if (flag === "--help" || flag === "--full" || flag === "--all") flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -31,14 +33,16 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     }
   }
   if (flags.has("--help")) return { command: name, ...entry };
-  const available = name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
+  const available = name === "email search" ? ["emails", "count", "total", "complete", "reason", "cursor", "help"] : name === "email show" ? ["email"]
+    : name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (name === "doctor") result = await doctor(store, config, flags.get("--profile"), flags.get("--saas"), transport);
+  if (name === "email search" || name === "email show") result = await emailRead(name, entityId, flags, store, transport);
+  else if (name === "doctor") result = await doctor(store, config, flags.get("--profile"), flags.get("--saas"), transport);
   else if (name === "auth status") result = store.status(config, flags.get("--profile"));
   else if (name === "profile list") result = store.list(config);
   else if (name === "config path") result = { config: store.configPath(config), state: store.statePath() };
@@ -69,7 +73,8 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, preview(child)]));
     return value;
   };
-  const projected = preview(store.redactor.value(Object.fromEntries(fields.map((field) => [field, result[field]])))) as Record<string, unknown>;
+  const projected = Object.fromEntries(fields.filter((field) => result[field] !== undefined).map((field) => [field,
+    field === "cursor" ? result[field] : preview(store.redactor.value(result[field]))])) as Record<string, unknown>;
   if (truncated) projected.help = [...(Array.isArray(projected.help) ? projected.help : []), "Repeat the command with --full to see complete strings"];
   return projected;
 }

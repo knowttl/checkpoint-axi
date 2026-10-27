@@ -3,7 +3,7 @@
 # Command reference
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
-Doctor explicitly checks regional API authentication and one bounded email search; all other shipped commands are local.
+Email search and detail reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.
 Run each command with `--help` for concise help.
 
 ## auth status
@@ -56,6 +56,49 @@ Check regional API authentication and one bounded email search without printing 
 ```sh
 checkpoint-axi doctor
 checkpoint-axi doctor --profile example --saas office365_emails
+```
+
+## email search
+
+Search emails with a bounded date window and scroll continuation (API guide pages 18-27)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--saas` | SaaS override; default selected profile saas or office365_emails |
+| `--saas-entity` | Optional SaaS entity type selector |
+| `--start-date` | ISO timestamp with timezone; default 24 hours before end-date; maximum window 31 days |
+| `--end-date` | ISO timestamp with timezone; default now |
+| `--filter` | JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20) |
+| `--limit` | Maximum rows; default 50, range 1-1000; cannot combine with --all |
+| `--all` | Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false |
+| `--cursor` | Opaque continuation bound to profile, region, operation and selectors; repeat original selectors |
+
+```sh
+checkpoint-axi email search
+checkpoint-axi email search --all --saas office365_emails
+checkpoint-axi email search --cursor <cursor>
+```
+
+## email show
+
+Show one email with verdicts, actions and available actions (API guide pages 10-18)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+
+```sh
+checkpoint-axi email show <id>
+checkpoint-axi email show <id> --full
 ```
 
 ## home

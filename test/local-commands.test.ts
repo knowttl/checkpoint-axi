@@ -10,7 +10,7 @@ test.each([
   ["profile", "list", "--unknown"], ["home", "extra"],
   ["config", "path", "--full", "false"], ["config", "path", "--config"],
   ["auth", "status", "--profile", "example", "--profile", "example"],
-  ["auth", "status", "--fields", "clientId"], ["email", "search"], ["constructor"], ["toString"],
+  ["auth", "status", "--fields", "clientId"], ["email", "search", "--unknown"], ["constructor"], ["toString"],
   ["doctor", "--client-secret=synthetic-argv-secret"], ["doctor", "--fields", "token"], ["doctor", "extra"],
 ])("rejects invalid input before attempting config reads: %j", async (...args) => {
   const f = fixture();

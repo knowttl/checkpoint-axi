@@ -11,12 +11,60 @@ const commands = Object.entries(catalogue).sort(([a], [b]) => a.localeCompare(b,
 const invocation = (example) => example.replace(/^checkpoint-axi(?= |$)/, "npx -y @knowttl/checkpoint-axi");
 const table = (prefix) => ["| Command | Purpose |", "|---|---|", ...commands.map(([name, entry]) =>
   `| \`${prefix} ${name}\` | ${escape(entry.description)} |`)].join("\n");
-const reference = `${generated}\n\n# Command reference\n\n${DESCRIPTION}.\nDoctor explicitly checks regional API authentication and one bounded email search; all other shipped commands are local.\nRun each command with \`--help\` for concise help.\n\n${commands.map(([name, entry]) => [
+const reference = `${generated}\n\n# Command reference\n\n${DESCRIPTION}.\nEmail search and detail reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.\nRun each command with \`--help\` for concise help.\n\n${commands.map(([name, entry]) => [
   `## ${name}`, "", entry.description, "", "| Flag | Meaning |", "|---|---|",
   ...Object.entries(entry.flags).map(([flag, meaning]) => `| \`--${flag}\` | ${escape(meaning)} |`), "",
   "```sh", ...entry.examples, "```", "",
 ].join("\n")).join("\n")}\n`;
-const skill = `---\nname: checkpoint-axi\ndescription: "Inspect Check Point Email Security profiles, validate local credentials and diagnose regional API authentication and read access with compact TOON output."\n---\n\n${generated}\n\n# checkpoint-axi\n\n${DESCRIPTION}.\nC1-C2 ship local discovery and a live doctor; other API operations and Artium integration arrive in later slices.\nUse \`npx -y @knowttl/checkpoint-axi\` after publication without a global install.\nBare \`--version\`, \`-v\` and \`-V\` print the package version.\n\n${SETUP_GUIDANCE.replaceAll("checkpoint-axi", "npx -y @knowttl/checkpoint-axi")}.\nSecrets use environment/file SecretRefs, never inline values, argv or chat.\nRegions are us, eu, ca, au, uk, uae and in; arbitrary origins are refused.\n\n\`\`\`sh\n${catalogue.home.examples.map(invocation).join("\n")}\n${invocation(catalogue["auth status"].examples[0])}\n${invocation(catalogue.doctor.examples[0])}\n\`\`\`\n\nHome and the optional checkpoint-axi-hook binary read local context only.\nConfigure a session hook only on explicit request; it is never installed automatically.\nUse the hook for ambient discovery or this skill for on-demand discovery.\nLocal auth status validates secret availability and file security without authenticating to the API.\nDo not infer API access from a local pass.\nDoctor explicitly authenticates and checks one email search page over the past 24 hours.\nIt reports region, SaaS and pass/fail per check without tenant data; a failed check exits 1.\nUse --saas to override the profile SaaS for doctor; the default is office365_emails.\nThe owner commissions doctor once manually against a test tenant; only a pass/fail note enters the repository.\nAUTH_SHAPE_UNVERIFIED requires commissioning of the undocumented token response shape (guide page 8).\nTokens stay in memory; verified TLS and the fixed region map are mandatory.\nDoctor is bounded by 10 HTTP requests, 8 MiB and 60 seconds including auth and retries.\nUse --full for strings truncated at 500 characters and --fields for output projection.\n\n${table("npx -y @knowttl/checkpoint-axi")}\n`;
+const skill = `---
+name: checkpoint-axi
+description: "Search and inspect Check Point Email Security emails, validate local profiles and diagnose regional API authentication with compact TOON output."
+---
+
+${generated}
+
+# checkpoint-axi
+
+${DESCRIPTION}.
+C1-C3 ship local discovery, a live doctor and email search/detail reads; other API operations and Artium integration arrive in later slices.
+Use \`npx -y @knowttl/checkpoint-axi\` after publication without a global install.
+Bare \`--version\`, \`-v\` and \`-V\` print the package version.
+
+${SETUP_GUIDANCE.replaceAll("checkpoint-axi", "npx -y @knowttl/checkpoint-axi")}.
+Secrets use environment/file SecretRefs, never inline values, argv or chat.
+Regions are us, eu, ca, au, uk, uae and in; arbitrary origins are refused.
+
+\`\`\`sh
+${catalogue.home.examples.map(invocation).join("\n")}
+${invocation(catalogue["auth status"].examples[0])}
+${invocation(catalogue.doctor.examples[0])}
+${invocation(catalogue["email search"].examples[0])}
+${invocation(catalogue["email show"].examples[0])}
+\`\`\`
+
+Home and the optional checkpoint-axi-hook binary read local context only.
+Configure a session hook only on explicit request; it is never installed automatically.
+Use the hook for ambient discovery or this skill for on-demand discovery.
+Local auth status validates secret availability and file security without authenticating to the API.
+Do not infer API access from a local pass.
+Doctor explicitly authenticates and checks one email search page over the past 24 hours.
+It reports region, SaaS and pass/fail per check without tenant data; a failed check exits 1.
+Use --saas to override the profile SaaS for doctor or email search; the default is office365_emails.
+The owner commissions doctor once manually against a test tenant; only a pass/fail note enters the repository.
+AUTH_SHAPE_UNVERIFIED requires commissioning of the undocumented token response shape (guide page 8).
+Tokens stay in memory; verified TLS and the fixed region map are mandatory.
+Every invocation is bounded by 10 HTTP requests, 8 MiB and 60 seconds including auth and retries.
+Email search defaults to 50 compact rows and a 24-hour window; --start-date and --end-date require ISO timestamps with timezones and a positive window of at most 31 days (guide pages 18-27).
+Use --limit <1-1000> or --all, which caps output at 1000 rows within the shared transport budget.
+Use --saas-entity for an entity type or --filter for a JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20).
+See [README's email-read guidance](../../README.md#email-reads-c3) for continuation, completion status, cursor safety and page replay limitations.
+Email show <id> includes payload, verdicts, actions taken and available actions (guide pages 10-18).
+Use --full for strings truncated at 500 characters and --fields for top-level output projection.
+Cursor strings are never truncated; secret-derived strings are redacted before previews.
+Downloads remain reserved for C11.
+
+${table("npx -y @knowttl/checkpoint-axi")}
+`;
 const readmePath = new URL("README.md", root);
 const readme = readFileSync(readmePath, "utf8");
 const start = "<!-- command-registry:start -->\n", end = "\n<!-- command-registry:end -->";

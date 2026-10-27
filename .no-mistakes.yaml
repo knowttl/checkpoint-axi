@@ -46,6 +46,13 @@ review:
       instructions: |
         One auth check and one bounded read, with region, SaaS and safe pass/fail codes only.
         Automated verification is offline; only the owner runs commissioning against a test tenant.
+    - path: "src/**/email*"
+      instructions: |
+        Entity GET and POST search/query are reads only (guide pages 10-27); no downloads or actions here.
+        Validate selectors before network access. Use a default 24-hour window, at most 31 days, and 50 rows by default.
+        Bind opaque cursors to profile/client identity, regional origin, operation and selectors; preserve unread page rows.
+        All scans share transport budgets and stop at 1000 rows, returning incomplete status and continuation.
+        Redact secret-derived strings before 500-character previews; never truncate continuation cursors.
     - path: "src/**/write*"
       instructions: |
         Require configured operation scope, preview, explicit execution, exact confirmation and durable intent before send.
