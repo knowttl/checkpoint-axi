@@ -92,7 +92,7 @@ Only a pass/fail commissioning note enters this public repository, never tenant 
 No commissioning run has been performed by the automated tests.
 
 The vendor guide does not document the token response shape or lifetime (page 8).
-The provisional parser accepts one distinct nonempty printable token from `token`, `access_token` or `accessToken` at the root or within `data` or `responseData`.
+The provisional parser accepts one distinct nonempty printable ASCII token without whitespace from `token`, `access_token` or `accessToken` at the root or within `data` or `responseData`.
 Unsupported, conflicting or invalid values fail with `AUTH_SHAPE_UNVERIFIED`, requiring owner commissioning rather than printing the response.
 Tokens stay in memory, are never cached to disk, and are exchanged once per invocation with at most one re-exchange on an API 401.
 All requests carry a new request UUID; authenticated API calls carry Bearer authorization.
@@ -127,7 +127,7 @@ corepack pnpm run identifiers:check
 
 Tests deny external networking, isolate local configuration and exercise an installed tarball offline.
 The affected-test selector includes the fixed safety baseline and runs the full suite for shared infrastructure changes.
-To regenerate catalogue docs or the planned capability inventory:
+To regenerate catalogue docs or the capability inventory:
 
 ```sh
 corepack pnpm run build
