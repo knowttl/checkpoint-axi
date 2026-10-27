@@ -7,6 +7,7 @@ import { doctor } from "./doctor.js";
 import { readCommand } from "./reads.js";
 import { exceptionCommand } from "./exceptions.js";
 import { emailWriteCommand, eventWriteCommand } from "./writes.js";
+import { exceptionWriteCommand } from "./write-exceptions.js";
 import type { gateway } from "./transport.js";
 
 export async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
@@ -18,10 +19,11 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   ]); };
   if (!entry) return usage();
   const flags = new Map<string, string>();
-  const isException = name === "exception list" || name === "exception show";
+  const isExceptionWrite = name === "exception create" || name === "exception update" || name === "exception remove";
+  const isException = name === "exception list" || name === "exception show" || isExceptionWrite;
   const kind = isException && !argv[2]?.startsWith("--") ? argv[2] : undefined;
   const idIndex = isException ? 3 : 2;
-  const entityId = name.endsWith(" show") && !argv[idIndex]?.startsWith("--") ? argv[idIndex] : undefined;
+  const entityId = (name.endsWith(" show") || name === "exception update" || name === "exception remove") && !argv[idIndex]?.startsWith("--") ? argv[idIndex] : undefined;
   const start = name === "home" ? (argv[0] === "home" ? 1 : 0) : name === "doctor" ? 1
     : isException ? 2 + Number(kind !== undefined) + Number(entityId !== undefined) : entityId === undefined ? 2 : 3;
   for (let index = start; index < argv.length; index++) {
@@ -44,13 +46,14 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     : name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];
-  const isWrite = name === "email quarantine" || name === "email restore" || name === "event action";
+  const isWrite = name === "email quarantine" || name === "email restore" || name === "event action" || isExceptionWrite;
   if (isWrite) available.splice(0, available.length, "outcome", "preview", "auditId", "tasks", "help");
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (name === "event action") result = await eventWriteCommand(flags, store, transport);
+  if (name === "exception create" || name === "exception update" || name === "exception remove") result = await exceptionWriteCommand(name, kind, entityId, flags, store, transport);
+  else if (name === "event action") result = await eventWriteCommand(flags, store, transport);
   else if (name === "email quarantine" || name === "email restore") result = await emailWriteCommand(name, flags, store, transport);
   else if (name === "exception list" || name === "exception show") result = await exceptionCommand(name, kind, entityId, flags, store, transport);
   else if (name === "email search" || name === "email show" || name === "event list" || name === "event show" || name === "task show") result = await readCommand(name, entityId, flags, store, transport);

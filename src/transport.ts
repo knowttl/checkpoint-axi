@@ -84,7 +84,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
     if (!Number.isFinite(milliseconds) || milliseconds < 0 || now() + milliseconds >= deadline) throw failure("TIME_BUDGET", "Read time budget exhausted");
     await wait(milliseconds);
   }
-  async function send(path: string, body?: unknown, bearer?: string) {
+  async function send(path: string, body?: unknown, bearer?: string, method = body === undefined ? "GET" : "POST") {
     const remaining = deadline - now();
     if (remaining <= 0) throw failure("TIME_BUDGET", "Read time budget exhausted");
     if (++requests > (mutation ? 44 : READ_LIMITS.requests)) throw failure("REQUEST_BUDGET", "Request budget exhausted");
@@ -92,7 +92,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
     if (bearer) redactor.add(`Bearer ${bearer}`);
     return new Promise<{ status: number; retryAfter?: string; value: unknown }>((resolve, reject) => {
       const req = request(new URL(path, REGIONS[profile.region]), {
-        method: payload === undefined ? "GET" : "POST", agent: dependencies.agent,
+        method, agent: dependencies.agent,
         headers: { "x-av-req-id": randomUUID(), accept: "application/json", ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
           ...(payload === undefined ? {} : { "content-type": "application/json", "content-length": Buffer.byteLength(payload) }) },
       }, (response) => {
@@ -129,16 +129,19 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
     if (response.status < 200 || response.status >= 300) throw failure("AUTH_FAILED", "Regional API authentication failed");
     token = tokenFrom(response.value, redactor);
   }
+  async function spaceException(path: string) {
+    const group = /^\/exceptions\/(whitelist|blacklist)(\/|$)/.test(path) ? "phishing"
+      : /^\/(exceptions|sectools|sectool-exceptions)\//.test(path) ? "other" : undefined;
+    if (group) {
+      const remaining = (nextException.get(group) ?? 0) - now();
+      if (remaining > 0) await pause(remaining);
+      nextException.set(group, now() + (group === "phishing" ? 1_000 : 100));
+    }
+  }
   async function read(query: ReadRequest): Promise<Page> {
     await authenticate();
-    const group = /^\/exceptions\/(whitelist|blacklist)(\/|$)/.test(query.path) ? "phishing"
-      : /^\/(exceptions|sectools|sectool-exceptions)\//.test(query.path) ? "other" : undefined;
     for (let retries = 0; ;) {
-      if (group) {
-        const remaining = (nextException.get(group) ?? 0) - now();
-        if (remaining > 0) await pause(remaining);
-        nextException.set(group, now() + (group === "phishing" ? 1_000 : 100));
-      }
+      await spaceException(query.path);
       const response = await send(`/app/hec-api/v1.0${query.path}`, query.body === undefined ? undefined : { requestData: query.body }, token);
       if (response.status === 401 && !refreshed) {
         refreshed = true;
@@ -188,5 +191,22 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
     if (response.status < 200 || response.status >= 300) throw failure("OUTCOME_UNKNOWN", "Event action outcome requires reconciliation; never replay automatically");
     return decodePage(response.value);
   }
-  return { authenticate, read, emailAction, eventAction };
+  // Guide pp.61-69, 75-82: closed C8 routes; deletion is a bodyless POST.
+  async function exceptionWrite(authorization: WriteAuthorization, kind: "phishing-allow" | "phishing-block" | "spam-allow",
+    action: "create" | "update" | "remove", target: string, data?: Record<string, unknown>): Promise<void> {
+    const routes = { "phishing-allow": "whitelist", "phishing-block": "blacklist", "spam-allow": "spam_whitelist" };
+    if (!mutation || !Object.hasOwn(routes, kind) || !["create", "update", "remove"].includes(action)
+      || !consumeWriteAuthorization(authorization, `exception.${kind}.${action}`, [target], profile.name, profile.region)) {
+      throw failure("WRITES_DISABLED", "A one-use coordinator authorization is required");
+    }
+    await authenticate();
+    const path = `/exceptions/${routes[kind]}${action === "create" ? "" : action === "remove" ? `/delete/${encodeURIComponent(target)}` : `/${encodeURIComponent(target)}`}`;
+    await spaceException(path);
+    const response = await send(`/app/hec-api/v1.0${path}`, action === "remove" ? undefined : { requestData: data }, token, action === "update" ? "PUT" : "POST");
+    if (response.status < 200 || response.status >= 300 || !object(response.value) || !object(response.value.responseEnvelope)
+      || ![0, "0", 200, "200", ...(action === "remove" ? [204, "204"] : [])].includes(response.value.responseEnvelope.responseCode as number | string)) {
+      throw failure("OUTCOME_UNKNOWN", "Exception write acknowledgement requires reconciliation; never replay automatically");
+    }
+  }
+  return { authenticate, read, emailAction, eventAction, exceptionWrite };
 }

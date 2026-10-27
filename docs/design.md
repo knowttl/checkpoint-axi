@@ -1,7 +1,7 @@
 # Design and delivery boundaries
 
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
-C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads; C6 adds the write coordinator and email quarantine/restore; C7 adds name-only event actions.
+C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads; C6 adds the write coordinator and email quarantine/restore; C7 adds name-only event actions; C8 adds Anti-Phishing and Spam exception writes.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
 The source is the [Email Security API Reference Guide, 23 October 2026](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf).
 `inventory/specs.json` pins its URL, SHA-256, byte length and page count.
@@ -62,6 +62,16 @@ No generic event no-op is inferred from action history or event state.
 The guide contradicts itself on parameters: `availableEventActions` contains parameter objects and repeated `severityChange` names (pages 36-37), while `eventActionParam` is an array of strings (page 43).
 Per the C7 decision, no parameter selector is added: nonempty parameter objects or repeated action names refuse `ENDPOINT_UNVERIFIED`, while event show preserves them for inspection.
 Serialization and parameterized execution are deferred to live commissioning through Artium; name-only request behavior is also uncommissioned.
+C8 creates, replaces and removes one Anti-Phishing allow/block or Spam allow exception through the same coordinator (pages 61-69, 75-82).
+Private JSON input contains documented requestData fields directly, with a nonempty matching criterion and a boolean ignoringSpfCheck when supplied.
+Create confirmation identifies the canonical payload SHA-256; update/remove confirmation identifies the exception ID.
+Create preflight requires a complete bounded list to detect an identical rule; update/remove preflight validates one matching detail or an empty result.
+An identical create/replacement or absent remove is a no-op; incomplete or malformed preflight fails closed.
+The closed transport consumes one authorization and sends POST create, PUT replacement or bodyless POST remove, without retry or reauthentication.
+Exception reads and sends share their family rate spacer.
+Only a successful response envelope is acknowledged as accepted; remove also accepts the documented envelope code 204.
+No task ID or created exception ID is invented; reconcile with list/show after submission.
+Live exception behavior remains uncommissioned until the owner tests all slices through Artium.
 Clearing a list requires confirmation including the freshly read count.
 Six malware/URL/DLP delete operations stay refused as `ENDPOINT_UNVERIFIED` until manual commissioning resolves the guide's identical create/delete descriptions.
 Downloads require `downloads.allow`, a new exclusive 0600 `--out` file, a 50 MiB cap and verified `x-av-sha256`.
@@ -71,7 +81,7 @@ Hosted downloads will reuse Artium's artifact mechanism in C12.
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read, C5 exception-read, C6 email-write and C7 name-only event-action capabilities.
+Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read, C5 exception-read, C6 email-write, C7 name-only event-action and C8 Anti-Phishing/Spam exception-write capabilities.
 Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
@@ -85,8 +95,8 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 | `exception list and show for eight kinds` | 55-131 | C5 | read | Shipped in C5; documented family/item reads; anomaly show refuses ENDPOINT_UNVERIFIED pending response identity commissioning. |
 | `email quarantine and restore` | 28-30 | C6 | write | Shipped in C6; POST action/entity through the gated coordinator with durable intent, exact confirmation, re-read and no retry. |
 | `event action` | 42-45 | C7 | write | Shipped in C7; gated POST action/event validates availableEventActions; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning. |
-| `phishing create update remove` | 61-69 | C8 | write | Anti-Phishing allow and block CRUD with explicit scope. |
-| `spam create update remove` | 75-83 | C8 | write | Spam allow-list CRUD with explicit scope. |
+| `phishing create update remove` | 61-69 | C8 | write | Shipped in C8; gated allow/block create, PUT replacement and bodyless POST remove with exact scope and confirmation. |
+| `spam create update remove` | 75-83 | C8 | write | Shipped in C8; gated allow-list create, PUT replacement and bodyless POST remove with exact scope and confirmation. |
 | `anomaly create remove` | 84-87 | C9 | write | Shared sectools/anomaly/exceptions POST needs explicit operation binding. |
 | `click-time create update remove remove-items clear` | 91-100 | C9 | write | List and item mutations; body-less clear needs counted confirmation. |
 | `malware create update` | 102-106 | C10 | write | Create, create-specific and modify sectool-exceptions/checkpoint2. |

@@ -25,9 +25,21 @@ const writeFlags = { ...common,
   "dry-run": "Explicit preview; cannot combine with --execute",
   confirm: "Exact operation followed by a space and the comma-separated IDs in supplied order",
 };
+const exceptionWriteFlags = { ...common, execute: writeFlags.execute, "dry-run": writeFlags["dry-run"],
+  confirm: "Exact operation followed by a space and the target from preview (payload sha256 for create, exception ID otherwise)" };
+const input = "Required absolute private JSON file containing documented requestData fields directly; at least one matching criterion; update sends a replacement PUT";
 
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
+  "exception create": { description: "Preview or create one phishing-allow, phishing-block or spam-allow exception (guide pages 61-64, 75-78)",
+    flags: { ...exceptionWriteFlags, input },
+    examples: ["checkpoint-axi exception create phishing-allow --input /absolute/rule.json", "checkpoint-axi exception create spam-allow --input /absolute/rule.json --execute --confirm 'exception.spam-allow.create sha256:<preview-digest>'"] },
+  "exception update": { description: "Preview or replace one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 64-67, 78-81)",
+    flags: { ...exceptionWriteFlags, input },
+    examples: ["checkpoint-axi exception update phishing-block <id> --input /absolute/rule.json", "checkpoint-axi exception update spam-allow <id> --input /absolute/rule.json --execute --confirm 'exception.spam-allow.update <id>'"] },
+  "exception remove": { description: "Preview or remove one phishing-allow, phishing-block or spam-allow exception by ID (guide pages 67-69, 81-82)",
+    flags: exceptionWriteFlags,
+    examples: ["checkpoint-axi exception remove phishing-allow <id>", "checkpoint-axi exception remove spam-allow <id> --execute --confirm 'exception.spam-allow.remove <id>'"] },
   "event action": { description: "Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45)",
     flags: { ...writeFlags, ids: "Required comma-separated unique event IDs; maximum 20", name: "Required available action name; nonempty action parameters are unverified" },
     examples: ["checkpoint-axi event action --ids <id> --name dismiss", "checkpoint-axi event action --ids <id> --name dismiss --execute --confirm 'event.action.dismiss <id>'"] },
