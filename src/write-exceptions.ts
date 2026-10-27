@@ -60,7 +60,8 @@ export async function exceptionWriteCommand(name: "exception create" | "exceptio
   checkScope();
   const session = gateway(profile, store.credentials(profile, true), store.redactor, transport, true);
   const path = exceptionFamilies[kind].path;
-  const same = (item: Record<string, unknown>) => Object.keys(fields).every((key) => (item[key] ?? undefined) === (data as Record<string, unknown>)[key])
+  const normalize = (value: unknown) => value === "" ? undefined : value ?? undefined;
+  const same = (item: Record<string, unknown>) => Object.keys(fields).every((key) => normalize(item[key]) === normalize((data as Record<string, unknown>)[key]))
     && (data!.entityId === undefined || item.entityId === data!.entityId);
   const readState = async () => {
     const page = await session.read({ path: (action === "create" ? path : `${path}/${id}`) as ExceptionPath });
@@ -76,8 +77,8 @@ export async function exceptionWriteCommand(name: "exception create" | "exceptio
     return { noop, state: { existing: action === "create" ? parsed.data.filter(same) : parsed.data, ...(data ? { requested: data } : {}) } };
   };
   return coordinateWrite({ operation, targets: [target], flags, store, scope: { profile: profile.name, region: profile.region }, checkScope, readState,
-    send: async (authorization) => {
-      await session.exceptionWrite(authorization, kind, action, target, data);
+    send: async (authorization, checkScopeBeforeSend) => {
+      await session.exceptionWrite(authorization, kind, action, target, checkScopeBeforeSend, data);
       return { help: [`Run checkpoint-axi exception ${action === "create" ? `list ${kind}` : `show ${kind} ${id}`} to reconcile the accepted request; live behavior is uncommissioned`] };
     } });
 }

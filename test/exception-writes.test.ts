@@ -16,7 +16,7 @@ afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) awai
 const routes = { "phishing-allow": "whitelist", "phishing-block": "blacklist", "spam-allow": "spam_whitelist" };
 const cases = Object.entries(routes).flatMap(([kind, route]) => ["create", "update", "remove"].map((action) => ({ kind, route, action })));
 
-async function setup(kind = "spam-allow", action = "update", handler?: Parameters<typeof fakeGateway>[0]) {
+async function setup(kind = "spam-allow", action = "update", handler?: Parameters<typeof fakeGateway>[0], onWait?: (count: number) => void) {
   const local = localFixture();
   cleanups.push(local.cleanup);
   const operation = `exception.${kind}.${action}`;
@@ -38,7 +38,7 @@ async function setup(kind = "spam-allow", action = "update", handler?: Parameter
   cleanups.push(server.close);
   const run = async (args: string[]) => {
     let output = "";
-    await main(args, { credentials: local.context, transport: { agent: server.agent, now: () => now, wait: async (ms) => { waits.push(ms); now += ms; } },
+    await main(args, { credentials: local.context, transport: { agent: server.agent, now: () => now, wait: async (ms) => { waits.push(ms); now += ms; onWait?.(waits.length); } },
       stdout: { write: (chunk) => { output += chunk; } } });
     const code = process.exitCode ?? 0;
     process.exitCode = 0;
@@ -136,6 +136,44 @@ test.each(["identity", "incomplete", "malformed", "duplicate"])("exception prefl
   expect(cli.requests).toHaveLength(2);
 });
 
+test.each(Object.keys(routes).flatMap((kind) => ["create", "update"].map((action) => ({ kind, action }))))(
+  "$kind $action recognizes documented empty optional fields as a no-op", async ({ kind, action }) => {
+    const cli = await setup(kind, action, (_request, response) => {
+      const page = structuredClone(existing);
+      Object.assign(page.responseData[0], { actionNeeded: "", senderName: null, senderNameMatching: "", recipientMatching: "" });
+      response.end(JSON.stringify(page));
+    });
+    writeFileSync(cli.input, JSON.stringify({ ...rule, senderDomainMatching: "" }));
+    expect((await cli.run([...cli.args, "--execute"])).data.outcome).toBe("noop");
+    expect(cli.requests).toHaveLength(2);
+    expect(existsSync(cli.log)).toBe(false);
+  });
+
+test.each([{ actionNeeded: "quarantine" }, { ignoringSpfCheck: true }, { senderName: " " }])(
+  "exception comparison preserves meaningful differences: %j", async (difference) => {
+    const cli = await setup();
+    writeFileSync(cli.input, JSON.stringify({ ...rule, ...difference }));
+    expect((await cli.run(cli.args)).data.preview.noop).toBe(false);
+  });
+
+test.each(cases.flatMap((entry) => ["allowWrites", "operation", "read-only"].map((revocation) => ({ ...entry, revocation }))))(
+  "$kind $action refuses $revocation revocation during send pacing", async ({ kind, action, revocation }) => {
+    const cli = await setup(kind, action, undefined, (count) => {
+      if (count !== 2) return;
+      if (revocation === "read-only") cli.local.env.CHECKPOINT_AXI_READ_ONLY = "true";
+      else {
+        if (revocation === "allowWrites") cli.local.profile.profiles.example.writes.allowWrites = false;
+        else cli.local.profile.profiles.example.writes.operations = [];
+        cli.local.save();
+      }
+    });
+    const preview = await cli.run(cli.args);
+    const result = await cli.run([...cli.args, "--execute", "--confirm", preview.data.preview.confirm]);
+    expect(result.data.error.code).toBe(revocation === "read-only" ? "WRITES_DISABLED" : "CONFIG_CHANGED");
+    expect(cli.requests.filter((request) => request.path !== "/auth/external").map((request) => request.method)).toEqual(["GET", "GET", "GET"]);
+    expect(cli.journal()).toMatchObject([{ kind: "intent" }, { kind: "outcome", outcome: "NOT_SENT" }]);
+  });
+
 test("intent is durable before final read; revoked scope aborts before send", async () => {
   let reads = 0;
   const cli = await setup("spam-allow", "update", (_request, response) => {
@@ -181,7 +219,7 @@ test("exception transport refuses forged coordinator authorization before authen
   const cli = await setup();
   const store = credentialStore(cli.local.context), profile = store.select(store.load().config);
   const session = gateway(profile, store.credentials(profile), store.redactor, {}, true);
-  await expect(session.exceptionWrite({ operation: cli.operation, targets: ["synthetic-exception-1"], profile: profile.name, region: profile.region }, "spam-allow", "update", "synthetic-exception-1", rule))
+  await expect(session.exceptionWrite({ operation: cli.operation, targets: ["synthetic-exception-1"], profile: profile.name, region: profile.region }, "spam-allow", "update", "synthetic-exception-1", () => {}, rule))
     .rejects.toMatchObject({ code: "WRITES_DISABLED" });
   expect(cli.requests).toEqual([]);
 });

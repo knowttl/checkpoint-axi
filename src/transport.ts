@@ -193,7 +193,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
   }
   // Guide pp.61-69, 75-82: closed C8 routes; deletion is a bodyless POST.
   async function exceptionWrite(authorization: WriteAuthorization, kind: "phishing-allow" | "phishing-block" | "spam-allow",
-    action: "create" | "update" | "remove", target: string, data?: Record<string, unknown>): Promise<void> {
+    action: "create" | "update" | "remove", target: string, checkScopeBeforeSend: () => void, data?: Record<string, unknown>): Promise<void> {
     const routes = { "phishing-allow": "whitelist", "phishing-block": "blacklist", "spam-allow": "spam_whitelist" };
     if (!mutation || !Object.hasOwn(routes, kind) || !["create", "update", "remove"].includes(action)
       || !consumeWriteAuthorization(authorization, `exception.${kind}.${action}`, [target], profile.name, profile.region)) {
@@ -202,6 +202,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
     await authenticate();
     const path = `/exceptions/${routes[kind]}${action === "create" ? "" : action === "remove" ? `/delete/${encodeURIComponent(target)}` : `/${encodeURIComponent(target)}`}`;
     await spaceException(path);
+    checkScopeBeforeSend();
     const response = await send(`/app/hec-api/v1.0${path}`, action === "remove" ? undefined : { requestData: data }, token, action === "update" ? "PUT" : "POST");
     if (response.status < 200 || response.status >= 300 || !object(response.value) || !object(response.value.responseEnvelope)
       || ![0, "0", 200, "200", ...(action === "remove" ? [204, "204"] : [])].includes(response.value.responseEnvelope.responseCode as number | string)) {
