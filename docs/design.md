@@ -1,7 +1,7 @@
 # Design and delivery boundaries
 
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
-C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads; C6 adds the write coordinator and email quarantine/restore.
+C1 implements the local scaffold; C2 adds authentication, bounded transport and `doctor`; C3 adds email reads; C4 adds event and task reads; C5 adds exception reads; C6 adds the write coordinator and email quarantine/restore; C7 adds name-only event actions.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
 The source is the [Email Security API Reference Guide, 23 October 2026](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf).
 `inventory/specs.json` pins its URL, SHA-256, byte length and page count.
@@ -55,6 +55,13 @@ The intent is synced before re-reading and sending; POSIX directory entries are 
 `src/writes.ts` owns these checks; `test/writes.test.ts` exercises ordering, unsafe journals, scope changes and ambiguous acknowledgements with synthetic data.
 Operation names are `email.quarantine`, `email.restore`, `event.action.<name>` and `exception.<kind>.<create|update|remove|remove-items|clear>`.
 Event action names must be validated against `availableEventActions`.
+C7 validates each event's identity and available action on initial and final reads through the C6 coordinator, with exact operation `event.action.<name>` and at most 20 targets.
+The event transport consumes a one-use authorization and sends `eventIds`, `eventActionName: [name]` and `eventActionParam: [""]` to the closed `/action/event` route (pages 42-45).
+Acknowledgements must identify every requested event, its freshly read entity and a task ID; any ambiguous response becomes `OUTCOME_UNKNOWN` without replay.
+No generic event no-op is inferred from action history or event state.
+The guide contradicts itself on parameters: `availableEventActions` contains parameter objects and repeated `severityChange` names (pages 36-37), while `eventActionParam` is an array of strings (page 43).
+Per the C7 decision, no parameter selector is added: nonempty parameter objects or repeated action names refuse `ENDPOINT_UNVERIFIED`, while event show preserves them for inspection.
+Serialization and parameterized execution are deferred to live commissioning through Artium; name-only request behavior is also uncommissioned.
 Clearing a list requires confirmation including the freshly read count.
 Six malware/URL/DLP delete operations stay refused as `ENDPOINT_UNVERIFIED` until manual commissioning resolves the guide's identical create/delete descriptions.
 Downloads require `downloads.allow`, a new exclusive 0600 `--out` file, a 50 MiB cap and verified `x-av-sha256`.
@@ -64,7 +71,7 @@ Hosted downloads will reuse Artium's artifact mechanism in C12.
 ## API coverage ledger
 
 Page numbers are printed guide pages.
-Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read, C5 exception-read and C6 email-write capabilities.
+Rows remain planned or excluded except the shipped C2 authentication/doctor, C3 email-read, C4 event/task-read, C5 exception-read, C6 email-write and C7 name-only event-action capabilities.
 Inventory metadata never enables command dispatch.
 Legacy whitelist/blacklist reads remain recorded separately from the eight exception kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp.
 
@@ -77,7 +84,7 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 | `legacy exception reads` | 49-55 | C5 | read | Shipped in C5 through phishing-allow and phishing-block list/show; same whitelist/blacklist routes. |
 | `exception list and show for eight kinds` | 55-131 | C5 | read | Shipped in C5; documented family/item reads; anomaly show refuses ENDPOINT_UNVERIFIED pending response identity commissioning. |
 | `email quarantine and restore` | 28-30 | C6 | write | Shipped in C6; POST action/entity through the gated coordinator with durable intent, exact confirmation, re-read and no retry. |
-| `event action` | 42-45 | C7 | write | POST action/event validated against availableEventActions. |
+| `event action` | 42-45 | C7 | write | Shipped in C7; gated POST action/event validates availableEventActions; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning. |
 | `phishing create update remove` | 61-69 | C8 | write | Anti-Phishing allow and block CRUD with explicit scope. |
 | `spam create update remove` | 75-83 | C8 | write | Spam allow-list CRUD with explicit scope. |
 | `anomaly create remove` | 84-87 | C9 | write | Shared sectools/anomaly/exceptions POST needs explicit operation binding. |

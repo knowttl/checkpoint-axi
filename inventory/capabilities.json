@@ -88,10 +88,10 @@
       "pages": "42-45",
       "slice": "C7",
       "disposition": "write",
-      "reason": "POST action/event validated against availableEventActions.",
+      "reason": "Shipped in C7; gated POST action/event validates availableEventActions; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "phishing create update remove",

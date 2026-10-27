@@ -8,7 +8,7 @@ description: "Inspect Check Point Email Security emails, events, tasks and excep
 # checkpoint-axi
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
-C1-C6 ship local discovery, a live doctor, email, event, task and exception reads, and gated email quarantine and restore; downloads, other writes and Artium integration arrive in later slices.
+C1-C7 ship local discovery, a live doctor, email, event, task and exception reads, gated email quarantine and restore, and name-only event actions; downloads, other writes and Artium integration arrive in later slices.
 Use `npx -y @knowttl/checkpoint-axi` after publication without a global install.
 Bare `--version`, `-v` and `-V` print the package version.
 
@@ -46,6 +46,10 @@ Email show <id> includes payload, verdicts, actions taken and available actions 
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.
 Cursor strings are never truncated; secret-derived strings are redacted before previews.
 Downloads remain reserved for C11.
+Event action --ids <ids> --name <action> previews by default and requires the exact profile operation event.action.<name>, --execute and the preview's exact --confirm to send once.
+Every target must offer the action on both reads; nonempty actionParameter objects or repeated action names refuse ENDPOINT_UNVERIFIED until live commissioning resolves the object/string contradiction (guide pages 36-37, 43).
+Use event show <id> to inspect all available actions, including deferred parameterized actions.
+Accepted actions return task IDs; use task show <taskId> to inspect asynchronous execution without replaying ambiguous outcomes.
 Event list supports documented selectors and shares email search bounds and continuation; event show preserves actions and task show reads asynchronous status without polling (guide pages 30-42).
 Exception list/show accept phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp (guide pages 49-123).
 For malware, url and dlp, --type is required; run exception list --help for the documented values.
@@ -66,6 +70,7 @@ Undocumented exception response shapes are preserved as JSON values and marked r
 | `npx -y @knowttl/checkpoint-axi email restore` | Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30) |
 | `npx -y @knowttl/checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
 | `npx -y @knowttl/checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
+| `npx -y @knowttl/checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
 | `npx -y @knowttl/checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
 | `npx -y @knowttl/checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
 | `npx -y @knowttl/checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |

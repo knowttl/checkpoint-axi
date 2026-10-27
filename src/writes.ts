@@ -139,6 +139,63 @@ const entity = z.object({ entityInfo: z.object({ entityId: z.string(), saasEntit
   entityAvailableActions: z.array(z.object({ entityActionName: z.string() })) });
 const task = z.object({ entityId: z.string(), taskId: z.union([z.string().regex(/^[A-Za-z0-9_-]+$/), z.number().int().nonnegative()]) });
 
+const event = z.object({ eventId: z.string(), entityId: z.string(), state: z.string(),
+  availableEventActions: z.array(z.object({ actionName: z.string(), actionParameter: z.record(z.string(), z.unknown()) })) });
+const eventTask = task.extend({ eventId: z.string() });
+
+export async function eventWriteCommand(flags: Flags, store: Store, transport?: Parameters<typeof gateway>[3]) {
+  const targets = flags.get("--ids")?.split(",") ?? [];
+  const action = flags.get("--name");
+  if (!targets.length || targets.length > 20 || new Set(targets).size !== targets.length
+    || targets.some((id) => !/^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$/.test(id))
+    || !action || !/^[a-z][A-Za-z0-9_-]{0,127}$/.test(action)) {
+    return fail("VALIDATION_ERROR", "Supply --name <action> and --ids with 1-20 unique comma-separated event IDs");
+  }
+  if (flags.has("--execute") && flags.has("--dry-run")) return fail("VALIDATION_ERROR", "--execute cannot combine with --dry-run");
+  store.readOnly();
+  const profile = store.select(store.load(flags.get("--config"), true).config, flags.get("--profile"));
+  const operation = `event.action.${action}`;
+  const checkScope = () => {
+    if (store.readOnly() || !profile.writes.allowWrites) fail("WRITES_DISABLED", "Writes are disabled for the selected profile");
+    if (!profile.writes.operations.includes(operation)) fail("OPERATION_NOT_WRITABLE", "Operation is outside the selected profile's exact write scope");
+    const fresh = store.select(store.load(flags.get("--config"), true).config, flags.get("--profile"));
+    if (JSON.stringify(fresh) !== JSON.stringify(profile)) fail("CONFIG_CHANGED", "Profile changed during the write; nothing was sent");
+  };
+  checkScope();
+  const session = gateway(profile, store.credentials(profile, true), store.redactor, transport, true);
+  const entities = new Map<string, string>();
+  const readState = async () => {
+    const states = [];
+    for (const id of targets) {
+      const page = await session.read({ path: `/event/${encodeURIComponent(id)}` });
+      const parsed = event.safeParse(page.records[0]);
+      if (page.records.length !== 1 || !parsed.success || parsed.data.eventId !== id) {
+        return fail("RESPONSE_INVALID", "Event preflight returned a missing, mismatched or malformed event");
+      }
+      const value = parsed.data;
+      const offered = value.availableEventActions.filter((item) => item.actionName === action);
+      if (!offered.length) fail("ACTION_UNAVAILABLE", "Requested action is unavailable for an event target");
+      // Guide pp.36-37 uses objects, but p.43 requires strings; never guess serialization.
+      if (offered.length !== 1 || Object.keys(offered[0]!.actionParameter).length) {
+        fail("ENDPOINT_UNVERIFIED", "Parameterized event actions require live commissioning through Artium", ["Run checkpoint-axi event show <id> to inspect available actions; parameter serialization is unverified (guide pages 36-37, 43)"]);
+      }
+      entities.set(id, value.entityId);
+      states.push({ id, state: value.state, action });
+    }
+    return { noop: false, state: states };
+  };
+  return coordinateWrite({ operation, targets, flags, store, scope: { profile: profile.name, region: profile.region }, checkScope, readState, send: async (authorization) => {
+    const page = await session.eventAction(authorization, action, targets);
+    const parsed = z.array(eventTask).safeParse(page.records);
+    if (!parsed.success || parsed.data.length !== targets.length || new Set(parsed.data.map((item) => item.eventId)).size !== targets.length
+      || parsed.data.some((item) => !targets.includes(item.eventId) || entities.get(item.eventId) !== item.entityId
+        || store.redactor.text(String(item.taskId)) !== String(item.taskId))) {
+      return fail("OUTCOME_UNKNOWN", "Action response did not identify a task for every event target");
+    }
+    return { tasks: parsed.data.map((item) => ({ ...item, outcome: "accepted" })), help: ["Run checkpoint-axi task show <taskId> to inspect asynchronous execution; accepted does not mean completed"] };
+  } });
+}
+
 export async function emailWriteCommand(name: "email quarantine" | "email restore", flags: Flags, store: Store, transport?: Parameters<typeof gateway>[3]) {
   const targets = flags.get("--ids")?.split(",") ?? [];
   if (!targets.length || targets.length > 20 || new Set(targets).size !== targets.length

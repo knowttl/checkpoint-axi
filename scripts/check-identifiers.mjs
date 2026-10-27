@@ -20,7 +20,7 @@ export function identifierViolations(text) {
     const host = domain.toLowerCase();
     // Source filenames and documented operation identifiers are not DNS names.
     if (/\.(?:md|json|ts|mts|mjs|js|yaml|yml|log|pdf)$/.test(host)
-      || ["email.quarantine", "email.restore", "event.action", "downloads.allow", "entitypayload.subject"].includes(host)) continue;
+      || ["email.quarantine", "email.restore", "event.action", "event.action.dismiss", "writes.allowwrites", "downloads.allow", "entitypayload.subject"].includes(host)) continue;
     if (!publicHosts.has(host) && !/(^|\.)(example\.(com|net|org)|test|invalid|example)$/.test(host)) violations.push("unapproved domain or internal host");
   }
   for (const [address] of text.matchAll(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g)) {
