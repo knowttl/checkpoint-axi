@@ -34,15 +34,10 @@ C3 implements bound continuation cursors and collection row limits for email sea
 ## Read, write and download safety
 
 Email reads decode schema-derived synthetic responses rather than copy inconsistent JSON samples.
-Scroll cursors bind profile, origin, operation and selectors.
-C3 additionally binds client identity and preserves the date window and page offset without truncating the cursor.
-Within-page continuation replays the server query because the API documents no page-size control; results changed between calls may be skipped or repeated.
-Splitting a page marks the cursor chain with replay risk; all subsequent results report `complete: false` with `reason: replay-may-skip-or-repeat`, including the final response without a cursor.
-Lists default to 50 rows and a 24-hour window, with a maximum 31-day window.
-`--all` stops at 10 requests, 1,000 rows, 60 seconds or 8 MiB and returns incomplete status with a continuation cursor.
+Scroll cursors bind profile, client identity, origin, operation and selectors, including the original date window.
+Search limits, page replay limitations, completion status and output previews are documented in [README](../README.md#email-reads-c3).
 Exception requests are spaced at 1 request/second for Anti-Phishing and 10 requests/second otherwise.
 Reads retry 429 at most twice, respecting `Retry-After`; writes never retry.
-All text uses 500-character previews with an explicit `--full` escape hatch.
 
 The future write coordinator requires configured `allowWrites` and exact operation scope, preview, `--execute`, exact confirmation naming every target, and durable redacted intent before a single send.
 `CHECKPOINT_AXI_READ_ONLY` overrides configured write permission.

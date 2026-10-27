@@ -20,7 +20,7 @@ node bin/checkpoint-axi.js auth status --help
 
 Output is TOON; errors use stable codes and exit 1, while invalid command syntax or flags exit 2.
 Bare `--version`, `-v` and `-V` print the version without loading the command graph.
-Strings have 500-character previews; `--full` returns complete strings and `--fields` selects output fields.
+`--fields` selects output fields; see [email reads](#email-reads-c3) for string previews and continuation behavior.
 
 <!-- command-registry:start -->
 | Command | Purpose |
