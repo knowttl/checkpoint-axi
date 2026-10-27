@@ -2,8 +2,8 @@
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
 Slices C1-C11 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions, exception writes for all eight kinds and guarded email/attachment downloads.
-Artium integration follows in C12; explicitly unverified operations remain refused until commissioning.
-The full API surface and later Artium integration are tracked in [the design](docs/design.md).
+Artium integration follows in C12.
+The full API surface and commissioning deferrals are tracked in [the design](docs/design.md).
 
 ## Local use
 
@@ -450,9 +450,9 @@ node scripts/specs.mjs --check --pdf /absolute/path/to/guide.pdf
 ## Releases
 
 The only hosted workflow is `release-please.yml`; no pull-request test workflow is configured.
-The package and release manifest start at `0.0.0`, with the first release configured as `0.1.0`.
+The package and release manifest start at `0.0.0`; release-please explicitly targets `0.1.0` for the next release PR.
 Release publication runs build, lint, offline tests and metadata checks, then publishes the verified tarball with npm OIDC trusted publishing and provenance.
-The placeholder `0.0.0` package and trusted publisher are configured; release-please explicitly targets `0.1.0` for the next release PR.
+The placeholder `0.0.0` package and trusted publisher are configured.
 After that release, remove the one-time `release-as` override before preparing a later version.
 No npm publishing token is used.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for testing and public-repository rules.

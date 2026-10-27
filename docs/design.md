@@ -147,7 +147,7 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 8. C8: Anti-Phishing and Spam writes.
 9. C9: anomaly and click-time writes.
 10. C10: malware, URL and DLP create/update; six deletes implemented but refused.
-11. C11: downloads, final skills/docs and 0.1.0 release after trusted-publisher registration.
+11. C11: downloads, final skills/docs and release preparation; see [README's release guidance](../README.md#releases) for publication status and mechanics.
 12. C12: separate Artium PR with credential schema, adapter, write policy, hosted artifacts, tool schema/maps, inventory, exact package/integrity pins and full-content skill overlay.
 
 ## Change recipe and tests
