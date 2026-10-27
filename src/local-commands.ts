@@ -8,6 +8,7 @@ import { readCommand } from "./reads.js";
 import { exceptionCommand } from "./exceptions.js";
 import { emailWriteCommand, eventWriteCommand } from "./writes.js";
 import { exceptionWriteCommand } from "./write-exceptions.js";
+import { downloadCommand } from "./downloads.js";
 import type { gateway } from "./transport.js";
 
 export async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
@@ -21,11 +22,13 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   const flags = new Map<string, string>();
   const isExceptionWrite = name === "exception create" || name === "exception update" || name === "exception remove" || name === "exception remove-items" || name === "exception clear";
   const isException = name === "exception list" || name === "exception show" || isExceptionWrite;
+  const isDownload = name === "email download" || name === "attachment download" || name === "attachment download-all";
   const kind = isException && !argv[2]?.startsWith("--") ? argv[2] : undefined;
   const idIndex = isException ? 3 : 2;
-  const entityId = (name.endsWith(" show") || name === "exception update" || name === "exception remove") && !argv[idIndex]?.startsWith("--") ? argv[idIndex] : undefined;
+  const entityId = (isDownload || name.endsWith(" show") || name === "exception update" || name === "exception remove") && !argv[idIndex]?.startsWith("--") ? argv[idIndex] : undefined;
+  const attachmentId = name === "attachment download" && entityId !== undefined && !argv[3]?.startsWith("--") ? argv[3] : undefined;
   const start = name === "home" ? (argv[0] === "home" ? 1 : 0) : name === "doctor" ? 1
-    : isException ? 2 + Number(kind !== undefined) + Number(entityId !== undefined) : entityId === undefined ? 2 : 3;
+    : isException ? 2 + Number(kind !== undefined) + Number(entityId !== undefined) : entityId === undefined ? 2 : 3 + Number(attachmentId !== undefined);
   for (let index = start; index < argv.length; index++) {
     const flag = argv[index]!;
     if (!flag.startsWith("--")) usage();
@@ -33,7 +36,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--items", "--specific", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--full", "--all", "--items", "--specific", "--original", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -48,11 +51,13 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
       : ["bin", "description", "status", "profiles", "count", "help"];
   const isWrite = name === "email quarantine" || name === "email restore" || name === "event action" || isExceptionWrite;
   if (isWrite) available.splice(0, available.length, "outcome", "preview", "auditId", "tasks", "response", "responseSchema", "help");
+  if (isDownload) available.splice(0, available.length, "path", "size", "sha256");
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (name === "exception create" || name === "exception update" || name === "exception remove" || name === "exception remove-items" || name === "exception clear") result = await exceptionWriteCommand(name, kind, entityId, flags, store, transport);
+  if (isDownload) result = await downloadCommand(name, entityId, attachmentId, flags, store, transport);
+  else if (name === "exception create" || name === "exception update" || name === "exception remove" || name === "exception remove-items" || name === "exception clear") result = await exceptionWriteCommand(name, kind, entityId, flags, store, transport);
   else if (name === "event action") result = await eventWriteCommand(flags, store, transport);
   else if (name === "email quarantine" || name === "email restore") result = await emailWriteCommand(name, flags, store, transport);
   else if (name === "exception list" || name === "exception show") result = await exceptionCommand(name, kind, entityId, flags, store, transport);
@@ -89,7 +94,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     return value;
   };
   const projected = Object.fromEntries(fields.filter((field) => result[field] !== undefined).map((field) => [field,
-    field === "cursor" ? result[field] : preview(store.redactor.value(result[field]))])) as Record<string, unknown>;
+    field === "cursor" || isDownload ? store.redactor.value(result[field]) : preview(store.redactor.value(result[field]))])) as Record<string, unknown>;
   if (truncated && !isWrite) projected.help = [...(Array.isArray(projected.help) ? projected.help : []), "Repeat the command with --full to see complete strings"];
   return projected;
 }

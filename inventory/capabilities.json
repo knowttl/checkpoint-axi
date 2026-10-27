@@ -198,10 +198,10 @@
       "pages": "131-137",
       "slice": "C11",
       "disposition": "download",
-      "reason": "Entity EML, individual attachment and all-attachment ZIP with opt-in.",
+      "reason": "Shipped in C11; opt-in private files, 50 MiB cap and mandatory SHA-256; scopes and email/ZIP hash availability remain unverified.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "audit logs",

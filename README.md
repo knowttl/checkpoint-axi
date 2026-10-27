@@ -1,8 +1,8 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C10 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions and exception writes for all eight kinds.
-Downloads and Artium integration arrive in later slices; explicitly unverified operations remain refused until commissioning.
+Slices C1-C11 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions, exception writes for all eight kinds and guarded email/attachment downloads.
+Artium integration follows in C12; explicitly unverified operations remain refused until commissioning.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
 ## Local use
@@ -25,9 +25,12 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 <!-- command-registry:start -->
 | Command | Purpose |
 |---|---|
+| `checkpoint-axi attachment download` | Download one attachment to a new private file with profile opt-in, a 50 MiB cap and verified x-av-sha256; scope behavior is unverified (guide pages 133-135) |
+| `checkpoint-axi attachment download-all` | Download available attachments as a ZIP to a new private file with opt-in, a 50 MiB cap and mandatory SHA-256 verification; ZIP hash availability and scopes are unverified; HTTP 200 may contain only some attachments (guide pages 135-137) |
 | `checkpoint-axi auth status` | Validate the selected local profile and secret source without API calls |
 | `checkpoint-axi config path` | Show config and state paths without reading files; --profile does not affect paths |
 | `checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
+| `checkpoint-axi email download` | Download an email to a new private file with profile opt-in, a 50 MiB cap and mandatory SHA-256 verification; scopes and email hash availability are unverified (guide pages 131-132) |
 | `checkpoint-axi email quarantine` | Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30) |
 | `checkpoint-axi email restore` | Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30) |
 | `checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
@@ -95,7 +98,7 @@ It confirms local readiness, not API authentication.
 `profile list` and home never resolve secret files.
 Supported regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; there is no origin override.
 Optional `saas` defaults to `office365_emails`; `doctor`, `email search` and `event list` accept `--saas <name>` to override it for that call.
-Optional `scope` is reserved for downloads.
+Optional `scope` supplies the required email download `scopes` header and the default optional attachment `scope` query.
 The host-facing [credential schema](axi-credential.schema.json) describes one strict profile.
 
 Config precedence is `--config`, then `CHECKPOINT_AXI_CONFIG`, then the platform path.
@@ -128,7 +131,8 @@ Token persistence and reauthentication rules are defined in [the transport desig
 All requests carry a new request UUID; authenticated API calls carry Bearer authorization.
 TLS certificate verification stays enabled and redirects are refused.
 Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
-Both are bounded by 8 MiB of response bytes and 60 seconds, including auth, re-exchange, read retries and delays.
+Both are bounded by 8 MiB of JSON response bytes and 60 seconds, including auth, re-exchange, read retries and delays.
+Download bodies have a separate 50 MiB cap per response within the same request/time budgets.
 Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` within that budget.
 Exception reads and writes share separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
 
@@ -148,7 +152,7 @@ Searches that split a page and all their continuations report `complete: false` 
 Continuation at a whole-page boundary can report `complete: true` on reaching the final page if no earlier page was split.
 Treat cursors as sensitive search state and do not edit them.
 Cursor strings are never truncated; email text is redacted before 500-character previews, with `--full` for complete text.
-Downloads remain reserved for C11.
+See [downloads](#downloads-c11) for private file output.
 
 ## Event and task reads (C4)
 
@@ -370,6 +374,36 @@ No guessed delete request can be sent through the transport.
 Delete contracts, response identities, input optionality, existence/no-op detection, acknowledgement shapes, auth and token lifetime remain unverified until the owner commissions everything together through Artium.
 All automated verification is offline with synthetic requests and arbitrary provisional acknowledgements.
 
+## Downloads (C11)
+
+Enable `downloads.allow: true` in a file profile before using `email download <entity-id>`, `attachment download <entity-id> <attachment-id>` or `attachment download-all <entity-id>` (guide pages 131-137).
+Every command requires an absolute `--out` path to a new file in an existing directory.
+Existing files and symlinks are refused before authentication; filenames from response headers are ignored.
+The file is created exclusively with mode 0600 on POSIX or a protected DACL on Windows before any content is written.
+Binary content is buffered up to 50 MiB per response, verified against the required `x-av-sha256` header, then written and synced; failed downloads remove their new output file.
+No binary content, server filename, headers or response body enters stdout; success prints only `path`, `size` and `sha256`.
+Downloads permit one token re-exchange after 401 and two 429 retries respecting Retry-After, within 10 total requests and 60 seconds including authentication.
+TLS verification and the fixed regional gateway restriction apply throughout; redirects are refused.
+
+```sh
+checkpoint-axi email download <entity-id> --out /absolute/message
+checkpoint-axi email download <entity-id> --original --out /absolute/original
+checkpoint-axi attachment download <entity-id> <attachment-id> --out /absolute/attachment
+checkpoint-axi attachment download-all <entity-id> --out /absolute/attachments
+```
+
+Email downloads require profile `scope`, sent verbatim as the comma-separated `scopes` header required on page 131.
+`--original` selects the unmodified email; default false includes the service's processing headers.
+Attachment commands use optional `--scope` as a query selector, defaulting to profile `scope` when configured; no scope query is sent when both are absent.
+Scope authorization and the relationship between the email `scopes` header and attachment `scope` query remain unverified until owner commissioning through Artium.
+The guide specifies `x-av-sha256` for individual attachments (page 134) but omits it for email and ZIP responses (pages 132, 136).
+All three commands enforce the approved hash requirement: a missing or malformed header returns `DOWNLOAD_HASH_INVALID`, and a mismatch returns `DOWNLOAD_HASH_MISMATCH`, with output removed.
+Email/ZIP hash availability therefore remains unverified and may require a commissioning follow-up before those downloads can succeed live.
+An attachment ZIP may contain only the attachments the service could retrieve even on HTTP 200 (page 136); a successful download does not prove attachment completeness.
+Archives are saved as received, never extracted automatically.
+Environment profiles cannot enable downloads; remote mutation scope and write confirmation remain separate from this download opt-in.
+All live-only facts, including token shape/lifetime, delete requests and download scopes, remain unverified; automated tests use only synthetic offline data.
+
 ## Agent discovery
 
 `checkpoint-axi-hook` emits local home context and does not install integrations or make API calls.
@@ -418,6 +452,7 @@ node scripts/specs.mjs --check --pdf /absolute/path/to/guide.pdf
 The only hosted workflow is `release-please.yml`; no pull-request test workflow is configured.
 The package and release manifest start at `0.0.0`, with the first release configured as `0.1.0`.
 Release publication runs build, lint, offline tests and metadata checks, then publishes the verified tarball with npm OIDC trusted publishing and provenance.
-The owner must register this package's trusted publisher for this repository and workflow before the first release.
+The placeholder `0.0.0` package and trusted publisher are configured; release-please explicitly targets `0.1.0` for the next release PR.
+After that release, remove the one-time `release-as` override before preparing a later version.
 No npm publishing token is used.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for testing and public-repository rules.
