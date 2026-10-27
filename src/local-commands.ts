@@ -33,7 +33,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     }
   }
   if (flags.has("--help")) return { command: name, ...entry };
-  const available = name === "email search" ? ["emails", "count", "total", "complete", "cursor", "help"] : name === "email show" ? ["email"]
+  const available = name === "email search" ? ["emails", "count", "total", "complete", "reason", "cursor", "help"] : name === "email show" ? ["email"]
     : name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];

@@ -11,7 +11,7 @@ const filters = z.array(z.strictObject({ saasAttrName: z.string().min(1),
   saasAttrOp: z.enum(["is", "contains", "startsWith", "isEmpty", "isNot", "notContains", "isNotEmpty", "greaterThan", "lessThan"]),
   saasAttrValue: z.string() }));
 const continuation = z.strictObject({ version: z.literal(1), binding: z.string(), start: timestamp, end: timestamp,
-  scroll: z.string().optional(), offset: z.number().int().nonnegative() });
+  scroll: z.string().optional(), offset: z.number().int().nonnegative(), replayRisk: z.literal(true).optional() });
 // Entity schemas and SaaS-specific payloads: guide pages 11-15 and 21-24.
 const entity = z.object({ entityInfo: z.object({ entityId: z.string().min(1), entityActionState: z.string().optional() }).passthrough(),
   entityPayload: z.object({ subject: z.string().optional() }).passthrough(),
@@ -67,8 +67,9 @@ export async function emailRead(name: "email search" | "email show", id: string 
   const emails: Record<string, unknown>[] = [];
   let scroll = cursor?.scroll;
   let offset = cursor?.offset ?? 0;
+  let replayRisk = cursor?.replayRisk ?? offset > 0;
   let total: number | undefined;
-  let complete = false;
+  let exhausted = false;
   while (emails.length < limit) {
     let page;
     try {
@@ -87,13 +88,16 @@ export async function emailRead(name: "email search" | "email show", id: string 
     emails.push(...rows.map((record) => ({ id: record.entityInfo.entityId, subject: record.entityPayload.subject ?? "",
       state: record.entityInfo.entityActionState ?? "", verdict: record.entitySecurityResults?.combinedVerdict ?? null })));
     offset += rows.length;
-    if (offset < page.records.length) break;
-    if (!page.scrollId) { complete = true; break; }
+    if (offset < page.records.length) { replayRisk = true; break; }
+    if (!page.scrollId) { exhausted = true; break; }
     scroll = page.scrollId;
     offset = 0;
   }
-  const next = complete ? undefined : Buffer.from(JSON.stringify({ version: 1, binding, start, end, scroll, offset })).toString("base64url");
-  return { emails, count: emails.length, ...(total === undefined ? {} : { total }), complete, ...(next ? { cursor: next } : {}),
+  const next = exhausted ? undefined : Buffer.from(JSON.stringify({ version: 1, binding, start, end, scroll, offset,
+    ...(replayRisk ? { replayRisk: true } : {}) })).toString("base64url");
+  return { emails, count: emails.length, ...(total === undefined ? {} : { total }), complete: exhausted && !replayRisk,
+    ...(replayRisk ? { reason: "replay-may-skip-or-repeat" } : {}), ...(next ? { cursor: next } : {}),
     help: [...(emails.length ? ["Run checkpoint-axi email show <id> for verdicts, actions and available actions"] : ["No emails matched this search window and selectors"]),
-      ...(next ? ["Repeat this search with --cursor <cursor> and the original selectors to continue"] : [])] };
+      ...(next ? ["Repeat this search with --cursor <cursor> and the original selectors to continue"] : []),
+      ...(replayRisk ? ["Results changed between calls may be skipped or repeated during page replay"] : [])] };
 }

@@ -45,13 +45,15 @@ test("search defaults to 50 compact rows in a 24-hour window", async () => {
   expect(Date.parse(body.requestData.entityFilter.endDate) - Date.parse(body.requestData.entityFilter.startDate)).toBe(86_400_000);
 });
 
-test("continuation preserves unread rows within a page without truncating the cursor", async () => {
+test("continuation replays a stable page without claiming completeness", async () => {
   const records = [fixture.responseData[0], { ...fixture.responseData[0], entityInfo: { entityId: "synthetic-email-2" } }];
   const cli = await setup((_request, response) => response.end(JSON.stringify({ ...fixture, responseData: records })));
   const first = await cli.run(["email", "search", ...window, "--limit", "1"]);
   const next = await cli.run(["email", "search", "--limit", "1", "--cursor", first.data.cursor]);
   expect(next.data.emails.map((row: any) => row.id)).toEqual(["synthetic-email-2"]);
-  expect(next.data.complete).toBe(true);
+  expect(first.data.reason).toBe("replay-may-skip-or-repeat");
+  expect(next.data).toMatchObject({ complete: false, reason: "replay-may-skip-or-repeat" });
+  expect(next.data.help).toContain("Results changed between calls may be skipped or repeated during page replay");
   expect(next.data.cursor).toBeUndefined();
 });
 
@@ -82,6 +84,8 @@ test("long continuation cursors stay usable without --full", async () => {
   const next = await cli.run(["email", "search", "--cursor", first.data.cursor]);
   expect(bodies[1].requestData.scrollId).toBe(scroll);
   expect(next.data.complete).toBe(true);
+  expect(next.data.reason).toBeUndefined();
+  expect(next.data.cursor).toBeUndefined();
 });
 
 test("search rejects a malformed entity instead of showing a misleading empty row", async () => {
@@ -109,7 +113,43 @@ test("all caps output at 1000 rows and resumes the remaining page", async () => 
   expect(first.data).toMatchObject({ count: 1000, complete: false });
   const next = await cli.run(["email", "search", "--cursor", first.data.cursor]);
   expect(next.data.emails.map((row: any) => row.id)).toEqual(["synthetic-email-1000"]);
-  expect(next.data.complete).toBe(true);
+  expect(next.data).toMatchObject({ complete: false, reason: "replay-may-skip-or-repeat" });
+  expect(next.data.cursor).toBeUndefined();
+});
+
+test.each([
+  { args: ["--limit", "1"], count: 1 },
+  { args: ["--all"], count: 1000 },
+])("changed results after a $count-row cap disclose possible omissions", async ({ args, count }) => {
+  const records = Array.from({ length: count + 2 }, (_, index) => ({ ...fixture.responseData[0], entityInfo: { entityId: `synthetic-email-${index}` } }));
+  let requests = 0;
+  const cli = await setup((_request, response) => {
+    requests++;
+    response.end(JSON.stringify({ ...fixture, responseData: requests === 1 ? records : records.slice(1) }));
+  });
+  const first = await cli.run(["email", "search", ...window, ...args]);
+  const next = await cli.run(["email", "search", "--cursor", first.data.cursor]);
+  expect(next.code).toBe(0);
+  expect(next.data.emails.map((row: any) => row.id)).toEqual([`synthetic-email-${count + 1}`]);
+  expect(next.data).toMatchObject({ complete: false, reason: "replay-may-skip-or-repeat" });
+  expect(next.data.help).toContain("Results changed between calls may be skipped or repeated during page replay");
+  expect(next.data.cursor).toBeUndefined();
+});
+
+test("replay risk survives a later whole-page boundary cursor", async () => {
+  const bodies: any[] = [];
+  const records = [fixture.responseData[0], { ...fixture.responseData[0], entityInfo: { entityId: "synthetic-email-2" } }];
+  const cli = await setup((_request, response, body) => {
+    bodies.push(body);
+    response.end(JSON.stringify({ ...fixture, responseData: records,
+      responseEnvelope: { ...fixture.responseEnvelope, scrollId: bodies.length < 3 ? "synthetic-next" : "" } }));
+  });
+  const first = await cli.run(["email", "search", ...window, "--limit", "1"]);
+  const second = await cli.run(["email", "search", "--limit", "1", "--cursor", first.data.cursor]);
+  const third = await cli.run(["email", "search", "--cursor", second.data.cursor, "--fields", "complete,reason,cursor"]);
+  expect(second.data.emails.map((row: any) => row.id)).toEqual(["synthetic-email-2"]);
+  expect(bodies[2].requestData.scrollId).toBe("synthetic-next");
+  expect(third.data).toEqual({ complete: false, reason: "replay-may-skip-or-repeat" });
 });
 
 test.each(["time", "bytes"])("all returns partial results and a usable cursor on the %s budget", async (budget) => {

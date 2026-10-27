@@ -112,9 +112,11 @@ Search defaults to the past 24 hours and 50 rows; `--start-date` and `--end-date
 `--filter` accepts a JSON array of the documented `saasAttrName`, `saasAttrOp` and `saasAttrValue` filters (guide pages 19-20).
 For example, `--filter '[{"saasAttrName":"entityPayload.subject","saasAttrOp":"contains","saasAttrValue":"Synthetic"}]'` selects a subject substring.
 Use `--limit <1-1000>` or `--all`, which stops at 1,000 rows, 10 HTTP requests, 60 seconds or 8 MiB, including authentication and retries.
-Incomplete searches return `complete: false` and an opaque `cursor`; repeat with `--cursor <cursor>` and the same original selectors to continue.
+Incomplete searches return `complete: false`; when an opaque `cursor` is present, repeat with `--cursor <cursor>` and the same original selectors to continue.
 Cursors preserve the original window, bind profile/client identity, regional origin, operation and selectors, and retain an offset when a row limit splits a server page.
-The API has no page-size parameter, so continuation within a page replays that page; changes to the underlying results can affect continuation.
+The API has no page-size parameter, so continuation within a page replays that page; results changed between calls may be skipped or repeated.
+Searches that split a page and all their continuations report `complete: false` with `reason: replay-may-skip-or-repeat`, even after reaching the final page, when no cursor is returned.
+Continuation at a whole-page boundary can report `complete: true` on reaching the final page if no earlier page was split.
 Treat cursors as sensitive search state and do not edit them.
 Cursor strings are never truncated; email text is redacted before 500-character previews, with `--full` for complete text.
 Downloads remain reserved for C11.
