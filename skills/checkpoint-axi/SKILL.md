@@ -40,9 +40,7 @@ Every invocation is bounded by 10 HTTP requests, 8 MiB and 60 seconds including 
 Email search defaults to 50 compact rows and a 24-hour window; --start-date and --end-date require ISO timestamps with timezones and a positive window of at most 31 days (guide pages 18-27).
 Use --limit <1-1000> or --all, which caps output at 1000 rows within the shared transport budget.
 Use --saas-entity for an entity type or --filter for a JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20).
-Incomplete output has complete: false and a cursor; repeat the original selectors with --cursor <cursor>.
-Cursors preserve the original window and bind profile, client identity, regional origin, operation and selectors; treat them as sensitive search state.
-Within-page continuation replays the query because the API has no page-size parameter; changing results can affect continuation.
+See [README's email-read guidance](../../README.md#email-reads-c3) for continuation, completion status, cursor safety and page replay limitations.
 Email show <id> includes payload, verdicts, actions taken and available actions (guide pages 10-18).
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.
 Cursor strings are never truncated; secret-derived strings are redacted before previews.
