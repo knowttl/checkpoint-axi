@@ -45,13 +45,13 @@ The C6 write coordinator requires configured `allowWrites` and exact operation s
 Target batches stop at 20; ambiguous outcomes report `OUTCOME_UNKNOWN` and are never replayed.
 Entity/event actions return `accepted` and `taskId`, since execution is asynchronous.
 Each write transport consumes a one-use coordinator authorization bound to the operation, targets, profile and region.
-Before a send, the coordinator re-reads every target and checks that the selected profile has not changed.
+Before a send, the coordinator repeats the slice-specific state check described below and checks that the selected profile has not changed.
 The API offers no conditional entity-action request, so this cannot prevent a concurrent server-side change after preflight.
 The journal and its lock must be private regular files in a private directory; symlinks, hard-linked journals, insecure modes, an incomplete journal or an existing lock block execution.
 POSIX files are created with mode 0600 and the directory with 0700.
 On Windows, newly created files and the journal directory receive protected DACLs granting FullControl only to the current user, SYSTEM and Administrators; existing paths must already satisfy this policy.
 Journal records contain only redacted metadata, never headers, message bodies, credentials or tokens.
-The intent is synced before re-reading and sending; POSIX directory entries are also synced for crash durability.
+The intent is synced before the final state check and send; POSIX directory entries are also synced for crash durability.
 `src/writes.ts` owns these checks; `test/writes.test.ts` exercises ordering, unsafe journals, scope changes and ambiguous acknowledgements with synthetic data.
 Operation names are `email.quarantine`, `email.restore`, `event.action.<name>` and `exception.<kind>.<create|update|remove|remove-items|clear>`.
 Event action names must be validated against `availableEventActions`.
