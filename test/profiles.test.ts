@@ -39,9 +39,29 @@ test.each([
   expect(result.output).not.toContain("synthetic-inline-secret");
 });
 
-test("profile flags take precedence over partial env metadata without mixing sources", async () => {
+test.each([
+  ["config-default", "example", undefined],
+  ["config-default", "example", { env: "CHECKPOINT_AXI_CLIENT_SECRET" }],
+  ["sole", undefined, undefined],
+  ["sole", undefined, { env: "CHECKPOINT_AXI_CLIENT_SECRET" }],
+])("a default SecretRef preserves %s file profile selection (%s, %j)", async (source, defaultProfile, clientSecret) => {
   const f = fixture();
-  f.env.CHECKPOINT_AXI_REGION = "ca";
+  f.profile.profiles.example.clientSecret = clientSecret;
+  f.profile.defaultProfile = defaultProfile;
+  f.save();
+  f.env.CHECKPOINT_AXI_CLIENT_SECRET = "synthetic-default-secret";
+  const status = await f.run(["auth", "status"]);
+  expect(status.code).toBe(0);
+  expect(status.data).toMatchObject({ profile: "example", source, region: "eu", clientSecret: "env" });
+  expect(status.output).not.toContain("synthetic-default-secret");
+  const home = await f.run(["home"]);
+  expect(home.code).toBe(0);
+  expect(home.data.status).toBe("configured: example (eu); not verified with the API");
+});
+
+test.each(["REGION", "CLIENT_ID", "SAAS", "SCOPE"])("profile flags take precedence over partial env metadata %s without mixing sources", async (field) => {
+  const f = fixture();
+  f.env[`CHECKPOINT_AXI_${field}`] = "ca";
   expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
   expect((await f.run(["auth", "status", "--profile", "example"])).data).toMatchObject({ region: "eu", source: "flag" });
 });

@@ -77,7 +77,7 @@ export function credentialStore(options: CredentialContext = {}, redactor = new 
   function select(config: ReturnType<typeof load>["config"], flag?: string): SelectedProfile {
     const selected = flag ?? env.CHECKPOINT_AXI_PROFILE;
     if (selected !== undefined && !profileName.safeParse(selected).success) invalid("Invalid selected profile name");
-    const envFields = ["REGION", "CLIENT_ID", "CLIENT_SECRET", "SAAS", "SCOPE"];
+    const envFields = ["REGION", "CLIENT_ID", "SAAS", "SCOPE"];
     if (selected === undefined && envFields.some((field) => env[`CHECKPOINT_AXI_${field}`] !== undefined)) {
       if (!region.safeParse(env.CHECKPOINT_AXI_REGION).success || !env.CHECKPOINT_AXI_CLIENT_ID?.trim() || !env.CHECKPOINT_AXI_CLIENT_SECRET?.trim()
         || (env.CHECKPOINT_AXI_SAAS !== undefined && !env.CHECKPOINT_AXI_SAAS.trim()) || (env.CHECKPOINT_AXI_SCOPE !== undefined && !env.CHECKPOINT_AXI_SCOPE.trim())) {
