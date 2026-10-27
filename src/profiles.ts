@@ -119,5 +119,5 @@ export function credentialStore(options: CredentialContext = {}, redactor = new 
     return { profiles: Object.entries(loaded.config.profiles).map(([name, profile]) => ({ name, region: profile.region, default: name === loaded.config.defaultProfile })),
       count: Object.keys(loaded.config.profiles).length, config: loaded.path };
   }
-  return { configPath, statePath: () => toolDirectory("state", env, platform, home), readOnly, load, select, credentials, status, list, redactor };
+  return { configPath, statePath: () => toolDirectory("state", env, platform, home), writeLogPath: () => env.CHECKPOINT_AXI_WRITE_LOG?.trim() || join(toolDirectory("state", env, platform, home), "writes.log"), readOnly, load, select, credentials, status, list, redactor };
 }

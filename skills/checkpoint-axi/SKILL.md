@@ -8,7 +8,7 @@ description: "Inspect Check Point Email Security emails, events, tasks and excep
 # checkpoint-axi
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
-C1-C5 ship local discovery, a live doctor and email, event, task and exception reads; downloads, writes and Artium integration arrive in later slices.
+C1-C6 ship local discovery, a live doctor, email, event, task and exception reads, and gated email quarantine and restore; downloads, other writes and Artium integration arrive in later slices.
 Use `npx -y @knowttl/checkpoint-axi` after publication without a global install.
 Bare `--version`, `-v` and `-V` print the package version.
 
@@ -36,7 +36,8 @@ Use --saas to override the profile SaaS for doctor, email search or event list; 
 The owner commissions all slices together through Artium after the full build; only a pass/fail note enters the repository.
 AUTH_SHAPE_UNVERIFIED requires commissioning of the undocumented token response shape (guide page 8).
 Tokens stay in memory; verified TLS and the fixed region map are mandatory.
-Every invocation is bounded by 10 HTTP requests, 8 MiB and 60 seconds including auth and retries.
+Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
+Both are bounded by 8 MiB and 60 seconds including auth and read retries.
 Email search defaults to 50 compact rows and a 24-hour window; --start-date and --end-date require ISO timestamps with timezones and a positive window of at most 31 days (guide pages 18-27).
 Use --limit <1-1000> or --all, which caps output at 1000 rows within the shared transport budget.
 Use --saas-entity for an entity type or --filter for a JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20).
@@ -61,6 +62,8 @@ Undocumented exception response shapes are preserved as JSON values and marked r
 | `npx -y @knowttl/checkpoint-axi auth status` | Validate the selected local profile and secret source without API calls |
 | `npx -y @knowttl/checkpoint-axi config path` | Show config and state paths without reading files; --profile does not affect paths |
 | `npx -y @knowttl/checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
+| `npx -y @knowttl/checkpoint-axi email quarantine` | Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30) |
+| `npx -y @knowttl/checkpoint-axi email restore` | Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30) |
 | `npx -y @knowttl/checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
 | `npx -y @knowttl/checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
 | `npx -y @knowttl/checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |

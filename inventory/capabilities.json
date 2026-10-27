@@ -78,10 +78,10 @@
       "pages": "28-30",
       "slice": "C6",
       "disposition": "write",
-      "reason": "POST action/entity through the common write coordinator.",
+      "reason": "Shipped in C6; POST action/entity through the gated coordinator with durable intent, exact confirmation, re-read and no retry.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
-      "executable": false
+      "executable": true
     },
     {
       "capability": "event action",

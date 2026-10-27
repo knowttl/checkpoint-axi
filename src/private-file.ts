@@ -15,6 +15,18 @@ export const windowsAcl: WindowsAcl = (path, verify) => {
   execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: "pipe" });
 };
 
+export function protectWindowsFile(path: string): void {
+  const quoted = `'${path.replaceAll("'", "''")}'`;
+  const script = `$ErrorActionPreference='Stop'; $p=${quoted}; $item=Get-Item -LiteralPath $p -Force; `
+    + `if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Reparse point' }; `
+    + `$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User; $acl=Get-Acl -LiteralPath $p; `
+    + `$acl.SetAccessRuleProtection($true,$false); foreach ($r in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($r) }; $acl.SetOwner($sid); `
+    + `foreach ($s in @($sid.Value,'S-1-5-18','S-1-5-32-544')) { $id=New-Object Security.Principal.SecurityIdentifier($s); `
+    + `$rule=New-Object Security.AccessControl.FileSystemAccessRule($id,'FullControl','Allow'); $acl.AddAccessRule($rule) }; Set-Acl -LiteralPath $p -AclObject $acl`;
+  execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: "pipe" });
+  windowsAcl(path, true);
+}
+
 export function toolDirectory(kind: "config" | "state", env = process.env, platform: NodeJS.Platform = process.platform, home = homedir()): string {
   if (platform === "win32") {
     const base = env[kind === "config" ? "APPDATA" : "LOCALAPPDATA"];

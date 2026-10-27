@@ -13,4 +13,6 @@ All event IDs, task IDs, action IDs, addresses, timestamps and content are synth
 The guide publishes no response schemas for anomaly, click-time, malware, URL or DLP reads (pages 83-123).
 Tests for those routes use arbitrary JSON to exercise preservation and bounds, not fabricated vendor schemas; their response contracts remain unverified.
 Authentication tests use synthetic provisional token shapes; page 8 documents the exchange but specifies no response schema or lifetime.
+`email-action-page.json` derives the per-entity asynchronous task acknowledgement from guide pages 29-30, with invented entity/task IDs and a reserved synthetic request UUID.
+Write tests vary entity state and available actions from pages 14-16 and bind the action request to the body schema on pages 28-29.
 Do not copy the guide's sample identifiers, domains or malformed JSON responses.

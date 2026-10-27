@@ -58,6 +58,48 @@ checkpoint-axi doctor
 checkpoint-axi doctor --profile example --saas office365_emails
 ```
 
+## email quarantine
+
+Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--ids` | Required comma-separated unique entity IDs; maximum 20 |
+| `--execute` | Send once after all write gates; default false (preview) |
+| `--dry-run` | Explicit preview; cannot combine with --execute |
+| `--confirm` | Exact operation followed by a space and the comma-separated IDs in supplied order |
+
+```sh
+checkpoint-axi email quarantine --ids <id>
+checkpoint-axi email quarantine --ids <id> --execute --confirm 'email.quarantine <id>'
+```
+
+## email restore
+
+Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--ids` | Required comma-separated unique entity IDs; maximum 20 |
+| `--execute` | Send once after all write gates; default false (preview) |
+| `--dry-run` | Explicit preview; cannot combine with --execute |
+| `--confirm` | Exact operation followed by a space and the comma-separated IDs in supplied order |
+
+```sh
+checkpoint-axi email restore --ids <id>
+checkpoint-axi email restore --ids <id> --execute --confirm 'email.restore <id>'
+```
+
 ## email search
 
 Search emails with a bounded date window and scroll continuation (API guide pages 18-27)
