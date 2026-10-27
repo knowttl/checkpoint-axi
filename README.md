@@ -1,7 +1,7 @@
 # checkpoint-axi
 
 An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C6 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads and gated email quarantine/restore.
+Slices C1-C7 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore and name-only event actions.
 Downloads, other writes and Artium integration arrive in later slices.
 The full API surface and later Artium integration are tracked in [the design](docs/design.md).
 
@@ -32,6 +32,7 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 | `checkpoint-axi email restore` | Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30) |
 | `checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
 | `checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
+| `checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
 | `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
 | `checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
 | `checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
@@ -40,6 +41,20 @@ Bare `--version`, `-v` and `-V` print the version without loading the command gr
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
 | `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
 <!-- command-registry:end -->
+
+## Event actions (C7)
+
+`checkpoint-axi event action --ids <id>[,<id>] --name <action>` previews an action against 1-20 unique events (guide pages 35-37, 42-45).
+Enable `writes.allowWrites` and the exact `event.action.<name>` operation in the selected profile; forced read-only always wins.
+Execution requires `--execute --confirm 'event.action.<name> <ids>'`, with IDs in the supplied order.
+The C6 coordinator durably records intent, re-reads every event and sends one batch only if the action remains available on every target.
+Accepted responses identify a task for every event; use `checkpoint-axi task show <taskId>` to inspect execution.
+Ambiguous outcomes are never retried.
+
+`event show <id>` lists all available actions, including parameterized actions deferred until live commissioning through Artium.
+Nonempty `actionParameter` objects and repeated action names refuse `ENDPOINT_UNVERIFIED`, including during preview.
+The guide exposes parameter objects on pages 36-37 but requires `eventActionParam` strings on page 43; C7 does not guess serialization or add a parameter selector.
+Name-only actions send `eventActionParam: [""]`; this and all live-only behavior remain uncommissioned.
 
 ## Profiles
 
@@ -141,7 +156,7 @@ SaaS defaults to the selected profile's value or `office365_emails`; other event
 Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](#email-reads-c3).
 Repeat all original event selectors with `--cursor`; the cursor preserves the original date window.
 Event and task text is redacted before 500-character previews; use `--full` for full strings and `--fields` to select top-level fields.
-Event actions arrive in C7.
+For writes, see [event actions](#event-actions-c7).
 These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior remain uncommissioned until the owner tests everything together through Artium.
 
 ## Exception reads (C5)

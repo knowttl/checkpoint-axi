@@ -176,5 +176,17 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
       ]);
     }
   }
-  return { authenticate, read, emailAction };
+  // Closed event-action route; authorization cannot be reused or supplied by argv.
+  async function eventAction(authorization: WriteAuthorization, action: string, targets: readonly string[]): Promise<Page> {
+    if (!mutation || !consumeWriteAuthorization(authorization, `event.action.${action}`, targets, profile.name, profile.region)) {
+      throw failure("WRITES_DISABLED", "A one-use coordinator authorization is required");
+    }
+    await authenticate();
+    const response = await send("/app/hec-api/v1.0/action/event", { requestData: {
+      eventIds: targets, eventActionName: [action], eventActionParam: [""],
+    } }, token);
+    if (response.status < 200 || response.status >= 300) throw failure("OUTCOME_UNKNOWN", "Event action outcome requires reconciliation; never replay automatically");
+    return decodePage(response.value);
+  }
+  return { authenticate, read, emailAction, eventAction };
 }

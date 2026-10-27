@@ -1,0 +1,4 @@
+{
+  "responseEnvelope": { "responseCode": 0, "recordsNumber": 1, "totalRecordsNumber": 1 },
+  "responseData": [{ "eventId": "synthetic-event-1", "entityId": "synthetic-email-1", "taskId": "123456" }]
+}

@@ -143,6 +143,28 @@ checkpoint-axi email show <id>
 checkpoint-axi email show <id> --full
 ```
 
+## event action
+
+Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45)
+
+| Flag | Meaning |
+|---|---|
+| `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
+| `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
+| `--fields` | Comma-separated output fields; default all |
+| `--full` | Show full strings instead of 500-character previews; default false |
+| `--help` | Show concise command help; default false |
+| `--ids` | Required comma-separated unique event IDs; maximum 20 |
+| `--execute` | Send once after all write gates; default false (preview) |
+| `--dry-run` | Explicit preview; cannot combine with --execute |
+| `--confirm` | Exact operation followed by a space and the comma-separated IDs in supplied order |
+| `--name` | Required available action name; nonempty action parameters are unverified |
+
+```sh
+checkpoint-axi event action --ids <id> --name dismiss
+checkpoint-axi event action --ids <id> --name dismiss --execute --confirm 'event.action.dismiss <id>'
+```
+
 ## event list
 
 List security events with bounded scroll continuation (API guide pages 37-42)

@@ -28,6 +28,9 @@ const writeFlags = { ...common,
 
 // Only shipped commands belong here. Inventory records are evidence, never dispatch.
 export const catalogue = {
+  "event action": { description: "Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45)",
+    flags: { ...writeFlags, ids: "Required comma-separated unique event IDs; maximum 20", name: "Required available action name; nonempty action parameters are unverified" },
+    examples: ["checkpoint-axi event action --ids <id> --name dismiss", "checkpoint-axi event action --ids <id> --name dismiss --execute --confirm 'event.action.dismiss <id>'"] },
   "email quarantine": { description: "Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30)", flags: writeFlags,
     examples: ["checkpoint-axi email quarantine --ids <id>", "checkpoint-axi email quarantine --ids <id> --execute --confirm 'email.quarantine <id>'"] },
   "email restore": { description: "Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30)", flags: writeFlags,

@@ -16,3 +16,6 @@ Authentication tests use synthetic provisional token shapes; page 8 documents th
 `email-action-page.json` derives the per-entity asynchronous task acknowledgement from guide pages 29-30, with invented entity/task IDs and a reserved synthetic request UUID.
 Write tests vary entity state and available actions from pages 14-16 and bind the action request to the body schema on pages 28-29.
 Do not copy the guide's sample identifiers, domains or malformed JSON responses.
+`event-action-page.json` derives event/entity/task acknowledgements from the schemas on guide pages 44-45 with invented IDs.
+Event-action tests derive parameterized variants from the schema on pages 35-37, and name-only requests from the body schema on page 43.
+They test refusal of uncommissioned parameter serialization, not an assumed object-to-string conversion.

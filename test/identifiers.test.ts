@@ -14,7 +14,7 @@ test.each([
 });
 
 test("identifier guard accepts public gateways and reserved synthetic examples", () => {
-  expect(identifierViolations("cloudinfra-gw.ca.portal.checkpoint.com user@example.test 192.0.2.1 00000000-0000-4000-8000-000000000001 entityPayload.subject")).toEqual([]);
+  expect(identifierViolations("cloudinfra-gw.ca.portal.checkpoint.com user@example.test 192.0.2.1 00000000-0000-4000-8000-000000000001 entityPayload.subject event.action.dismiss writes.allowWrites")).toEqual([]);
 });
 
 test("documentation and fixtures contain only approved identifiers", () => {
