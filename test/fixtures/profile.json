@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "defaultProfile": "example",
+  "profiles": {
+    "example": {
+      "region": "eu",
+      "clientId": "synthetic-client",
+      "clientSecret": { "env": "SYNTHETIC_SECRET" }
+    }
+  }
+}
