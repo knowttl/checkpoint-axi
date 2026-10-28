@@ -5,6 +5,7 @@ import { join } from "node:path";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const publicHosts = new Set([
   "github.com", "nodejs.org", "registry.npmjs.org", "json-schema.org", "toonformat.dev",
+  "img.shields.io", "www.npmjs.com",
   "sc1.checkpoint.com", "cloudinfra-gw-us.portal.checkpoint.com", "cloudinfra-gw.portal.checkpoint.com",
   "cloudinfra-gw.ca.portal.checkpoint.com", "cloudinfra-gw.ap.portal.checkpoint.com", "cloudinfra-gw.uk.portal.checkpoint.com",
   "cloudinfra-gw.me.portal.checkpoint.com", "cloudinfra-gw.in.portal.checkpoint.com",

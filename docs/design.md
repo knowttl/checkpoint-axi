@@ -1,5 +1,7 @@
 # Design and delivery boundaries
 
+[Credentials and transport](#credentials-and-transport) | [Safety](#read-write-and-download-safety) | [API coverage](#api-coverage-ledger) | [Slices](#slices-and-integration) | [Change recipe](#change-recipe-and-tests)
+
 The v1 design covers the full Harmony Email & Collaboration API in twelve slices.
 See the [API coverage ledger](#api-coverage-ledger) for shipped capabilities and commissioning deferrals by slice.
 The executable catalogue is separate from the planned inventory; inventory metadata never enables dispatch.
@@ -15,7 +17,7 @@ One strict profile contains `region`, `clientId`, a `clientSecret` SecretRef, op
 `saas` defaults to `office365_emails`; `doctor`, `email search` and `event list` expose `--saas` as a per-call override.
 Only the fixed seven-gateway region map is supported; profiles cannot supply an origin.
 `src/private-file.ts` owns platform read security; configuration and secret source rules follow the AXI credential standard.
-Config/profile precedence, strict env-profile completeness and private-file rules are documented in README.
+Config/profile precedence, strict env-profile completeness and private-file rules are documented in [configuration](configuration.md).
 C1-C2 have no private writes or token persistence.
 All resolved secret forms are registered for raw, JSON-escaped and URL-encoded output redaction before use.
 
@@ -26,17 +28,17 @@ Action requests never reauthenticate or retry, including on 401 or 429.
 Token response shape and lifetime are undocumented; the owner will commission all slices together through Artium after the full build.
 Only a pass/fail commissioning note may enter this public repository.
 Automated tests never contact that tenant.
-The provisional token field candidates and commissioning failure code are documented in README.
+The provisional token field candidates and commissioning failure code are documented in [read transport](reads.md#doctor-and-transport).
 Doctor performs one page of the default 24-hour entity search for the selected SaaS and discards the data.
 The transport normalizes object/array response data and preserves scroll metadata for the read slices.
-Auth, re-exchange, retries and delays share the [invocation budgets in README](../README.md#doctor-and-commissioning).
+Auth, re-exchange, retries and delays share the [invocation budgets](reads.md#doctor-and-transport).
 C3-C4 share bound continuation cursors and collection row limits for email search and event list in `src/reads.ts`.
 
 ## Read, write and download safety
 
 Email reads decode schema-derived synthetic responses rather than copy inconsistent JSON samples.
 Scroll cursors bind profile, client identity, origin, operation and selectors, including the original date window.
-Search limits, page replay limitations, completion status and output previews are documented in [README](../README.md#email-reads-c3).
+Search limits, page replay limitations, completion status and output previews are documented in [read guidance](reads.md#email-reads).
 Exception requests are spaced at 1 request/second for Anti-Phishing and 10 requests/second otherwise.
 Reads retry 429 at most twice, respecting `Retry-After`; writes never retry.
 
@@ -147,12 +149,12 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 8. C8: Anti-Phishing and Spam writes.
 9. C9: anomaly and click-time writes.
 10. C10: malware, URL and DLP create/update; six deletes implemented but refused.
-11. C11: downloads, final skills/docs and release preparation; see [README's release guidance](../README.md#releases) for publication status and mechanics.
+11. C11: downloads, final skills/docs and release preparation; see [release guidance](../CONTRIBUTING.md#releases) for publication mechanics.
 12. C12: separate Artium PR with credential schema, adapter, write policy, hosted artifacts, tool schema/maps, inventory, exact package/integrity pins and full-content skill overlay.
 
 ## Change recipe and tests
 
-The command catalogue generates the README command table, command reference and skill.
+The command catalogue generates the README group overview, full command reference and skill.
 `docs:check` detects drift after build, and `spec:check` detects coverage/provenance drift without networking.
 The identifier guard permits public vendor gateways, documentation hosts, reserved example domains, documentation IP ranges and explicitly synthetic UUIDs only.
 It is a guardrail alongside staged review, not a substitute for checking public-repository hygiene.

@@ -1,458 +1,164 @@
 # checkpoint-axi
 
-An agent-facing CLI for Check Point Email Security (Harmony Email & Collaboration), modelled on the knowttl AXI tools.
-Slices C1-C11 of 12 ship local profile discovery, regional authentication, a bounded live `doctor` check, email search/detail reads, event/task reads, exception reads, gated email quarantine/restore, name-only event actions, exception writes for all eight kinds and guarded email/attachment downloads.
-Artium integration follows in C12.
-The full API surface and commissioning deferrals are tracked in [the design](docs/design.md).
+Inspect Check Point Email Security through compact, guarded AXI commands
 
-## Local use
+[![npm](https://img.shields.io/npm/v/@knowttl/checkpoint-axi)](https://www.npmjs.com/package/@knowttl/checkpoint-axi) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Node](https://img.shields.io/node/v/@knowttl/checkpoint-axi)](package.json) [![Provenance](https://img.shields.io/badge/npm-provenance-blue)](https://www.npmjs.com/package/@knowttl/checkpoint-axi#provenance) [![AXI](https://img.shields.io/badge/AXI-agent%20experience-blue)](https://github.com/knowttl)
 
-Requires Node.js 22.12 or later and pnpm through Corepack.
+[Why](#why-this-exists) | [Quickstart](#quickstart) | [Agents](#use-with-your-agent) | [Coverage](#what-it-covers) | [Safety](#safety) | [Configuration](#configuration) | [Output](#output-and-exit-codes) | [Troubleshooting](#troubleshooting) | [Contributing](#contributing) | [Security](#security) | [License](#license)
 
-```sh
-corepack pnpm install --frozen-lockfile --ignore-scripts
-corepack pnpm run build
-node bin/checkpoint-axi.js
-node bin/checkpoint-axi.js config path
-node bin/checkpoint-axi.js profile list
-node bin/checkpoint-axi.js auth status --help
-```
+## Why this exists
 
-Output is TOON; errors use stable codes and exit 1, while invalid command syntax or flags exit 2.
-Bare `--version`, `-v` and `-V` print the version without loading the command graph.
-`--fields` selects output fields; see [email reads](#email-reads-c3) for string previews and continuation behavior.
+Check Point Email Security (Harmony Email & Collaboration) exposes a large API with inconsistent examples and undocumented response shapes.
+Agents need bounded results and explicit uncertainty to avoid guessing routes or replaying disruptive actions.
+This CLI returns compact TOON, redacts secret-derived text and provides next-step hints.
+Reads have request, byte and time budgets; writes require exact permission, confirmation and durable intent.
+Live API contracts still require manual verification; offline fixtures do not establish live compatibility.
 
-<!-- command-registry:start -->
-| Command | Purpose |
-|---|---|
-| `checkpoint-axi attachment download` | Download one attachment to a new private file with profile opt-in, a 50 MiB cap and verified x-av-sha256; scope behavior is unverified (guide pages 133-135) |
-| `checkpoint-axi attachment download-all` | Download available attachments as a ZIP to a new private file with opt-in, a 50 MiB cap and mandatory SHA-256 verification; ZIP hash availability and scopes are unverified; HTTP 200 may contain only some attachments (guide pages 135-137) |
-| `checkpoint-axi auth status` | Validate the selected local profile and secret source without API calls |
-| `checkpoint-axi config path` | Show config and state paths without reading files; --profile does not affect paths |
-| `checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
-| `checkpoint-axi email download` | Download an email to a new private file with profile opt-in, a 50 MiB cap and mandatory SHA-256 verification; scopes and email hash availability are unverified (guide pages 131-132) |
-| `checkpoint-axi email quarantine` | Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30) |
-| `checkpoint-axi email restore` | Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30) |
-| `checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
-| `checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
-| `checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
-| `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
-| `checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
-| `checkpoint-axi exception clear` | Refuse click-time/malware/url/dlp clear with ENDPOINT_UNVERIFIED until commissioning establishes counts and delete contracts (guide pages 87-88, 96-97, 107-110, 117-120, 128-131) |
-| `checkpoint-axi exception create` | Preview or create one exception of any kind; anomaly/click-time/malware/url/dlp response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93, 102-105, 113-116, 123-126) |
-| `checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
-| `checkpoint-axi exception remove` | Preview or remove one phishing/spam/anomaly/click-time exception by ID; malware/url/dlp refuse ENDPOINT_UNVERIFIED before authentication (guide pages 67-69, 81-82, 85-87, 98-99, 108-110, 119-120, 129-131) |
-| `checkpoint-axi exception remove-items` | Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98) |
-| `checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
-| `checkpoint-axi exception update` | Preview or replace one exception; phishing/spam/click-time require an ID; malware/url/dlp identify it in --input without an ID; anomaly unsupported (guide pages 64-67, 78-81, 94-96, 105-107, 116-117, 126-127) |
-| `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
-| `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
-| `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
-<!-- command-registry:end -->
+## Quickstart
 
-## Event actions (C7)
-
-`checkpoint-axi event action --ids <id>[,<id>] --name <action>` previews an action against 1-20 unique events (guide pages 35-37, 42-45).
-Enable `writes.allowWrites` and the exact `event.action.<name>` operation in the selected profile; forced read-only always wins.
-Execution requires `--execute --confirm 'event.action.<name> <ids>'`, with IDs in the supplied order.
-The C6 coordinator durably records intent, re-reads every event and sends one batch only if the action remains available on every target.
-Accepted responses identify a task for every event; use `checkpoint-axi task show <taskId>` to inspect execution.
-Ambiguous outcomes are never retried.
-
-`event show <id>` lists all available actions, including parameterized actions deferred until live commissioning through Artium.
-Nonempty `actionParameter` objects and repeated action names refuse `ENDPOINT_UNVERIFIED`, including during preview.
-The guide exposes parameter objects on pages 36-37 but requires `eventActionParam` strings on page 43; C7 does not guess serialization or add a parameter selector.
-Name-only actions send `eventActionParam: [""]`; this and all live-only behavior remain uncommissioned.
-
-## Profiles
-
-`config path` reports platform paths without reading files.
-Config defaults to `$XDG_CONFIG_HOME/checkpoint-axi/config.json` (or `~/.config/checkpoint-axi/config.json`) on Linux/macOS, and `%APPDATA%\checkpoint-axi\config.json` on Windows.
-State defaults to `$XDG_STATE_HOME/checkpoint-axi` (or `~/.local/state/checkpoint-axi`), and `%LOCALAPPDATA%\checkpoint-axi` on Windows.
-Windows ignores XDG variables.
-No command discovers config from the current directory or writes configuration.
-
-Create a config file with this synthetic shape and protect it from group/other writes:
-
-```json
-{
-  "version": 1,
-  "defaultProfile": "example",
-  "profiles": {
-    "example": {
-      "region": "eu",
-      "clientId": "synthetic-client",
-      "clientSecret": { "env": "CHECKPOINT_AXI_CLIENT_SECRET" },
-      "saas": "office365_emails",
-      "downloads": { "allow": false },
-      "writes": { "allowWrites": false, "operations": [] }
-    }
-  }
-}
-```
-
-Supply the secret through your environment or an absolute private file SecretRef, never chat, argv or an inline config value.
-Omitting `clientSecret` defaults its reference to `CHECKPOINT_AXI_CLIENT_SECRET`.
-`auth status` resolves the selected reference locally and reports only its kind (`env` or `file`); it never prints the value, client ID, variable name or secret file path.
-It confirms local readiness, not API authentication.
-`profile list` and home never resolve secret files.
-Supported regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; there is no origin override.
-Optional `saas` defaults to `office365_emails`; `doctor`, `email search` and `event list` accept `--saas <name>` to override it for that call.
-Optional `scope` supplies the required email download `scopes` header and the default optional attachment `scope` query.
-The host-facing [credential schema](axi-credential.schema.json) describes one strict profile.
-
-Config precedence is `--config`, then `CHECKPOINT_AXI_CONFIG`, then the platform path.
-Profile precedence is `--profile`, `CHECKPOINT_AXI_PROFILE`, complete env profile, config default, sole file profile, then an explicit missing/ambiguous error.
-An env profile requires `CHECKPOINT_AXI_REGION`, `CHECKPOINT_AXI_CLIENT_ID` and `CHECKPOINT_AXI_CLIENT_SECRET` together; optional `CHECKPOINT_AXI_SAAS` and `CHECKPOINT_AXI_SCOPE` cannot stand alone.
-File-selected metadata never mixes with env-profile fields, though an explicit SecretRef can name an environment variable.
-Environment profiles always disable writes and downloads.
-`CHECKPOINT_AXI_READ_ONLY` accepts `1`/`true` or `0`/`false` case-insensitively; any other value fails closed.
-`CHECKPOINT_AXI_WRITE_LOG` overrides the write journal, defaulting to `writes.log` in the platform state directory.
-An empty override uses that default.
-
-POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
-Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
-On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email, event, task and exception API commands also verify a protected DACL for the current user, SYSTEM and Administrators.
-
-## Doctor and commissioning
-
-`checkpoint-axi doctor --profile <name>` explicitly contacts the selected public regional gateway.
-It authenticates and runs one page of email search over the past 24 hours for the selected SaaS.
-It reports region, SaaS and pass/fail for auth and read, without email data or credentials; a failed check exits 1.
-Home, the hook, command help and `auth status` remain offline.
-The owner will commission authentication and all other slices together through Artium after the full build (Q4).
-Only a pass/fail commissioning note enters this public repository, never tenant identifiers, raw responses, secrets or tokens.
-No commissioning run has been performed by the automated tests.
-
-The vendor guide does not document the token response shape or lifetime (page 8).
-The provisional parser accepts one distinct nonempty printable ASCII token without whitespace from `token`, `access_token` or `accessToken` at the root or within `data` or `responseData`.
-Unsupported, conflicting or invalid values fail with `AUTH_SHAPE_UNVERIFIED`, requiring owner commissioning rather than printing the response.
-Token persistence and reauthentication rules are defined in [the transport design](docs/design.md#credentials-and-transport).
-All requests carry a new request UUID; authenticated API calls carry Bearer authorization.
-TLS certificate verification stays enabled and redirects are refused.
-Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
-Both are bounded by 8 MiB of JSON response bytes and 60 seconds, including auth, re-exchange, read retries and delays.
-Download bodies have a separate 50 MiB cap per response within the same request/time budgets.
-Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` within that budget.
-Exception reads and writes share separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
-
-## Email reads (C3)
-
-`checkpoint-axi email search` reads compact ID, subject, action state and combined verdict rows (guide pages 18-27).
-`checkpoint-axi email show <id>` returns the entity payload, security results, actions taken and available actions (guide pages 10-18).
-Search defaults to the past 24 hours and 50 rows; `--start-date` and `--end-date` accept ISO timestamps with timezones, with a positive window of at most 31 days.
-`--saas` overrides the selected profile and `--saas-entity` optionally selects the entity type.
-`--filter` accepts a JSON array of the documented `saasAttrName`, `saasAttrOp` and `saasAttrValue` filters (guide pages 19-20).
-For example, `--filter '[{"saasAttrName":"entityPayload.subject","saasAttrOp":"contains","saasAttrValue":"Synthetic"}]'` selects a subject substring.
-Use `--limit <1-1000>` or `--all`, which stops at 1,000 rows, 10 HTTP requests, 60 seconds or 8 MiB, including authentication and retries.
-Incomplete searches return `complete: false`; when an opaque `cursor` is present, repeat with `--cursor <cursor>` and the same original selectors to continue.
-Cursors preserve the original window, bind profile/client identity, regional origin, operation and selectors, and retain an offset when a row limit splits a server page.
-The API has no page-size parameter, so continuation within a page replays that page; results changed between calls may be skipped or repeated.
-Searches that split a page and all their continuations report `complete: false` with `reason: replay-may-skip-or-repeat`, even after reaching the final page, when no cursor is returned.
-Continuation at a whole-page boundary can report `complete: true` on reaching the final page if no earlier page was split.
-Treat cursors as sensitive search state and do not edit them.
-Cursor strings are never truncated; email text is redacted before 500-character previews, with `--full` for complete text.
-See [downloads](#downloads-c11) for private file output.
-
-## Event and task reads (C4)
-
-`checkpoint-axi event list` returns compact ID, type, state and severity rows (guide pages 37-42).
-`checkpoint-axi event show <id>` preserves event details, action history and available actions (guide pages 34-37).
-`checkpoint-axi task show <id>` returns task status, progress and per-action details for asynchronous actions (guide pages 30-33).
-Task states are `init`, `inprogress`, `completed`, `failed`, `stopped` and `paused`; task show performs one read without polling.
-Event list accepts comma-separated `--event-types`, `--event-states`, `--severities`, `--event-ids` and `--saas`, plus `--confidence-indicator` and `--description` text selectors.
-SaaS defaults to the selected profile's value or `office365_emails`; other event selectors default to unfiltered.
-Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](#email-reads-c3).
-Repeat all original event selectors with `--cursor`; the cursor preserves the original date window.
-Event and task text is redacted before 500-character previews; use `--full` for full strings and `--fields` to select top-level fields.
-For writes, see [event actions](#event-actions-c7).
-These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior remain uncommissioned until the owner tests everything together through Artium.
-
-## Exception reads (C5)
-
-`checkpoint-axi exception list <kind>` and `exception show <kind> <id-or-value>` cover `phishing-allow`, `phishing-block`, `spam-allow`, `anomaly`, `click-time`, `malware`, `url` and `dlp` (guide pages 49-123).
-Legacy whitelist/blacklist reads use the same routes as phishing-allow/phishing-block, without duplicate commands (pages 49-60).
-Phishing and Spam lists return compact ID, sender, subject and comment fields; show preserves the full record and verifies the returned entity ID (pages 56-60, 70-74).
-Click-time defaults to list routes; add `--items` to list or show for item routes (pages 87-91).
-Malware, URL and DLP require `--type` on both commands:
-
-| Kind | Types | Guide pages |
-|---|---|---|
-| malware | `hash`, `micro_hash`, `file_type`, `ppat_sender_name`, `allow_file_type`, `sender_email` | 100-102 |
-| url | `allow-url`, `allow-domain`, `block-url`, `block-domain` | 110-112 |
-| dlp | `hash`, `text_content`, `sender_email`, `recipient_email` | 120-123 |
-
-For example, `checkpoint-axi exception show url 'https://example.com/path' --type allow-url` encodes the supplied value as one path segment.
-Anomaly has only a documented list GET, with no detail endpoint or response identity schema (pages 83-84).
-`exception show anomaly <id>` therefore refuses with `ENDPOINT_UNVERIFIED` before authentication until owner commissioning settles the contract.
-The guide also publishes no response schemas for click-time, malware, URL or DLP reads.
-These families and anomaly list preserve JSON values, marked `responseSchema: unverified`, without inventing identity fields or claiming live compatibility.
-Unknown-shape detail results are arrays of returned JSON values; documented Phishing/Spam details return one validated object.
-Live commissioning of these contracts happens later with all slices together through Artium.
-
-Lists default to 50 rows, accept `--limit <1-1000>` or `--all` capped at 1000 rows, and share the 10-request, 8 MiB and 60-second transport budgets.
-No paging request parameter is documented for these GET routes, so each command reads one response without guessing a scroll query.
-Truncation, nonempty scroll metadata or a larger advertised total returns `complete: false` and an explanation; there is no exception continuation cursor.
-Anti-Phishing list/detail requests share a 1 request/second spacer; all other exception routes share a 10 requests/second spacer within each invocation, including retries and reauthentication replays.
-Text is redacted before 500-character previews; `--full` restores complete strings, and `--fields` selects top-level output fields.
-
-## Email writes (C6)
-
-`checkpoint-axi email quarantine --ids <id1>,<id2>` and `email restore --ids <id1>,<id2>` preview asynchronous email actions (guide pages 28-30).
-The selected file profile must opt in with `writes: { "allowWrites": true, "operations": ["email.quarantine", "email.restore"] }`, listing only the exact operations it needs.
-Wildcards never grant scope, environment-only profiles cannot write, and `CHECKPOINT_AXI_READ_ONLY` always wins.
-These gates apply to previews too.
-Supply 1-20 unique entity IDs, comma-separated without spaces.
-Previews read each entity, verify its identity and email type, check the available action and show current state.
-An explicit `--dry-run` also previews and cannot combine with `--execute`.
-
-Every action is disruptive.
-Sending an action requires `--execute` plus exact confirmation containing the operation, a space and the comma-separated supplied IDs in order:
+Requires Node.js 22.12 or later.
+Install and open the local home view, which needs no credentials or network:
 
 ```sh
-checkpoint-axi email restore --ids synthetic-email-1 --execute --confirm 'email.restore synthetic-email-1'
+npm install --global @knowttl/checkpoint-axi
+checkpoint-axi
+# Or without a global install:
+npx -y @knowttl/checkpoint-axi
 ```
 
-Quarantine is a no-op when `isQuarantined` is true; restore is a no-op only when `isRestored` is true and `isQuarantined` is false.
-An entirely no-op batch returns without confirmation or a send; a mixed batch sends only targets still needing the action after re-read.
-The confirmation still names the full requested batch.
-Before sending, the coordinator records and syncs a redacted JSON-lines `kind: intent` record with `auditId`, operation, profile, region and targets.
-It re-reads every target, checks the profile has not changed, and sends at most one action request.
-Previews and initial no-ops create no journal.
-The [write safety design](docs/design.md#read-write-and-download-safety) defines journal privacy, durability and file requirements.
-An intent-recording failure returns `INTENT_NOT_RECORDED` before sending.
-An outcome-recording failure returns `OUTCOME_NOT_RECORDED` and requires reconciliation.
-
-Successful submission returns `outcome: accepted`, `auditId` and per-entity `tasks` containing `entityId`, `taskId` and `outcome: accepted`.
-Use `checkpoint-axi task show <taskId>` to inspect execution; submission does not establish that an email was changed.
-Action requests never retry, including on 401 or 429, and never follow redirects.
-A disconnected, invalid, incomplete or otherwise unsuccessful acknowledgement returns `OUTCOME_UNKNOWN` with its audit ID.
-Read back every target and reconcile the journal before any further action; never replay automatically.
-Write preflights, authentication and the action share the [transport limits](#doctor-and-commissioning); read retries also consume that budget.
-All C6 verification is offline and synthetic; live action behavior, auth shape and token lifetime remain unverified until owner commissioning through Artium.
-
-## Anti-Phishing and Spam writes (C8)
-
-`exception create <kind>`, `exception update <kind> <id>` and `exception remove <kind> <id>` support `phishing-allow`, `phishing-block` and `spam-allow` (guide pages 61-69, 75-83).
-Every command uses the C6 coordinator, including previews: the selected file profile needs `writes.allowWrites: true` and the exact operation `exception.<kind>.<create|update|remove>`.
-`CHECKPOINT_AXI_READ_ONLY` always wins.
-Each invocation targets one rule; update/remove require its exception ID.
-Create/update require `--input /absolute/rule.json`, a private regular JSON file (POSIX mode 0600; Windows protected DACL) containing the documented `requestData` fields directly, without an envelope:
-
-```json
-{
-  "senderEmail": "sender@example.com",
-  "senderEmailMatching": "contains",
-  "subject": "Synthetic exception",
-  "subjectMatching": "contains",
-  "comment": "Synthetic rule",
-  "ignoringSpfCheck": false
-}
-```
-
-Allowed string fields are `entityId`, `attachmentMd5`, `senderEmail`, `senderName`, `recipient`, `senderClientIp`, `senderDomain`, `senderIp`, `linkDomains`, `subject`, `comment`, `actionNeeded`, `subjectMatching`, `linkDomainMatching`, `senderNameMatching`, `senderDomainMatching`, `senderEmailMatching` and `recipientMatching`.
-`ignoringSpfCheck` is boolean, following the parameter tables rather than the guide's string-boolean examples.
-At least one nonempty matching criterion is required; metadata or matching operators alone cannot create a rule.
-Unknown fields and a supplied update `entityId` that differs from the positional ID are rejected before authentication.
-Update sends the supplied fields as a replacement PUT, so supply the complete intended rule rather than a partial patch.
-Remove sends a bodyless POST to the documented delete route.
+A fresh home view includes `status: not configured` and `count: 0`.
+For a read-only environment profile, supply `CHECKPOINT_AXI_CLIENT_SECRET` through your secret manager or private environment before running:
 
 ```sh
-checkpoint-axi exception create phishing-allow --input /absolute/rule.json
-checkpoint-axi exception update spam-allow synthetic-exception-1 --input /absolute/rule.json
-checkpoint-axi exception remove phishing-block synthetic-exception-1
+export CHECKPOINT_AXI_REGION=eu
+export CHECKPOINT_AXI_CLIENT_ID=synthetic-client
+checkpoint-axi auth status
+checkpoint-axi doctor
+checkpoint-axi email search --limit 5
 ```
 
-Commands preview by default; `--dry-run` makes that explicit.
-Inspect the requested rule and current state, then repeat with `--execute` and the exact `--confirm` emitted by the preview.
-Create confirmation is `exception.<kind>.create sha256:<digest>`, binding the canonical payload; update/remove confirmation is `exception.<kind>.<action> <id>`.
-Create reads a complete bounded list to detect an identical rule; incomplete lists refuse execution because no continuation parameter is documented.
-Update/remove validate one matching detail response or an empty result; an absent update returns `NOT_FOUND`.
-Identical creates/replacements and absent removals detected on the initial read are no-ops without confirmation, a journal or a send.
-If the final read detects a no-op, the command returns `outcome: noop` with `auditId` and records `NOT_SENT` in the journal.
-After exact confirmation, durable redacted intent precedes a final state read, profile check and single send.
-The journal contains operation/target metadata, never the JSON payload.
-Preflight reads and the mutation share the exception rate spacer and the write transport budgets.
+Replace the synthetic client ID with your API client ID.
+`auth status` checks credentials locally; `doctor` authenticates and reads one search page without printing email data.
+Use [file profiles](docs/configuration.md) for named credentials and write/download permissions.
 
-Successful envelopes return `outcome: accepted` and `auditId`; these exception endpoints provide no task ID or created ID.
-Use `exception list <kind>` after create or `exception show <kind> <id>` after update/remove to reconcile.
-The remove acknowledgement also accepts the guide's envelope code 204.
-HTTP errors, redirects, disconnections and invalid acknowledgements become `OUTCOME_UNKNOWN`, without retries or token re-exchange.
-Reconcile before any further action and never replay automatically.
-All C8 verification uses offline synthetic fixtures; live exception behavior, auth shape and token lifetime remain unverified until owner commissioning through Artium.
+## Use with your agent
 
-## Anomaly and click-time writes (C9)
+`checkpoint-axi-hook` is the session entry point: configure your agent's session-start hook to run it on explicit request.
+It emits local home context, grants no permissions and makes no API calls.
+There is no automatic hook installer or `setup hooks` command.
+To remove it, delete the hook entry you added in your agent configuration.
 
-`exception create anomaly`, `exception remove anomaly <rule-id>`, `exception create click-time`, `exception update click-time <item-id>`, `exception remove click-time <item-id>` and `exception remove-items click-time --ids <id1>,<id2>` implement the documented requests on guide pages 84-99.
-Every operation uses the C6 coordinator and requires configured writes.allowWrites, exact operation scope `exception.<kind>.<action>` and no forced read-only override, including for previews.
-Create and update read a private absolute `--input` JSON file containing the requestData fields directly, without an envelope.
-Anomaly create accepts `addedBy` and `requestJson` with `whitelist-option:new_country`, `apply-to-past` (`Yes` or `No`), `anomaly-comment` and `event_id`:
-
-```json
-{
-  "addedBy": "",
-  "requestJson": {
-    "whitelist-option:new_country": "synthetic-country-1",
-    "apply-to-past": "Yes",
-    "anomaly-comment": "Synthetic rule",
-    "event_id": "synthetic-event-1"
-  }
-}
-```
-
-Click-time create accepts `listItemName`, `listId` and `createdBy`; update additionally requires `listItemId` matching the positional item ID:
-
-```json
-{
-  "listItemName": "https://example.com/path",
-  "listId": "synthetic-list-1",
-  "createdBy": ""
-}
-```
-
-IDs contain 1-256 letters, digits, underscores or hyphens; remove-items requires 1-20 unique IDs.
-Unknown fields fail before authentication.
-Anomaly create/remove share a POST route, distinguished by their documented request bodies; remove sends `{ "requestData": { "ruleId": "<rule-id>" } }`.
-Click-time create and remove-items share POST items, distinguished by create fields or listItemIds; update sends PUT items/{item_id}, and remove sends a bodyless POST items/{item_id}.
-Collection PUT items (pages 93-94) is deferred until commissioning; update requires one positional item ID.
-
-The guide does not document response schemas for anomaly/click-time reads or acknowledgements.
-C9 previews explicitly show targetState: unverified and do not infer existence, identity or no-op state from arbitrary JSON.
-Execution requires `--execute` and the preview's exact `--confirm`, even if a target might already be absent or a rule already exists.
-Create confirms the complete private payload SHA-256; other commands confirm every caller-supplied ID in order.
-Durable redacted intent and final configuration/scope checks precede one send; requests never retry or reauthenticate after a mutation response.
-The journal holds metadata only, never input or response bodies.
-Successful HTTP status and any supplied successful response envelope return outcome: accepted, auditId, responseSchema: unverified and the bounded raw JSON response, redacted before the usual 500-character string previews.
-Never repeat a mutation to retrieve truncated strings; use read-only list or item commands to reconcile.
-An empty HTTP 204 is represented as response: null.
-No created ID, task ID or count is derived; reconcile using list or item reads, whose response identities also remain unverified.
-
-`exception clear click-time` refuses ENDPOINT_UNVERIFIED before authentication, including previews: the required freshly read count cannot be trusted from an undocumented list shape (pages 87-88, 96-97).
-Clear, collection PUT, response identities, existence/no-op detection and acknowledgement shapes remain live-commissioning follow-ups through Artium.
-All tests are offline and synthetic; no live behavior or token lifetime has been commissioned.
-
-## Malware, URL and DLP writes (C10)
-
-`exception create <malware|url|dlp> --input /absolute/rule.json` sends POST to the family route; add `--specific` to use its documented `/exceptions` create-specific route (guide pages 102-105, 113-116, 123-126).
-`exception update <malware|url|dlp> --input /absolute/rule.json` sends PUT to the family route (pages 105-107, 116-117, 126-127).
-Updates take no positional ID: `exception_type` and `exception_str` in the body identify the target.
-Families map to `checkpoint2`, `avanan_url` and `avanan_dlp` under `/sectool-exceptions/`.
-The private input file contains requestData fields directly, without an envelope.
-Create requires `exception_type`, `exception_str`, `comment`, `entity_type`, `entity_id`, `file_name`, `created_by_email` and boolean `is_exclusive`.
-Malware create additionally requires `exception_payload` with a nonempty string `condition`, for example `{ "condition": "with_link" }`.
-Update requires only `exception_type`, `exception_str`, `comment` and `exception_payload` with a nonempty string `condition`.
-Types are the same family-specific values listed in [exception reads](#exception-reads-c5); type, value and entity selectors must be nonempty.
-Unknown fields are rejected, including nested payload fields.
-These provisional input contracts follow the guide's request bodies: it publishes no parameter tables defining optionality or additional payload fields.
-
-```json
-{
-  "exception_type": "allow-url",
-  "exception_str": "https://example.com/path",
-  "comment": "Synthetic rule",
-  "entity_type": "user",
-  "entity_id": "synthetic-user-1",
-  "file_name": "synthetic.json",
-  "created_by_email": "sender@example.com",
-  "is_exclusive": true
-}
-```
-
-Every command uses the C6 coordinator, with the exact operation `exception.<kind>.<create|update>`, configured write opt-in and forced read-only taking precedence.
-Commands preview by default; execution requires `--execute` and the exact preview confirmation.
-Both create and update confirmations bind the complete normalized payload and create-specific route choice by SHA-256, so changing either requires a new confirmation.
-The guide provides no response schemas for existence or no-op checks, so C10 follows C9: previews mark target state unverified, and initial/final state callbacks retain uncertainty without inferring identity or no-op state.
-Durable redacted intent and final scope/configuration checks precede one send; the journal contains metadata only.
-Requests never retry or reauthenticate after a mutation response.
-Successful HTTP status with valid JSON (or empty HTTP 204) and any supplied successful response envelope returns `accepted`, `auditId`, `responseSchema: unverified` and the bounded redacted response.
-No created ID or task ID is inferred; reconcile with `exception list <kind> --type <type>`.
-Ambiguous acknowledgements return `OUTCOME_UNKNOWN`; never replay automatically.
-
-All six `exception remove <malware|url|dlp> <value>` and `exception clear <malware|url|dlp>` commands refuse `ENDPOINT_UNVERIFIED` before configuration, credentials, authentication or journaling, including previews.
-The guide documents them as identical to create requests (pages 102 vs 107, 104 vs 108, 113 vs 117, 114 vs 119, 123 vs 128, 124 vs 129).
-No guessed delete request can be sent through the transport.
-Delete contracts, response identities, input optionality, existence/no-op detection, acknowledgement shapes, auth and token lifetime remain unverified until the owner commissions everything together through Artium.
-All automated verification is offline with synthetic requests and arbitrary provisional acknowledgements.
-
-## Downloads (C11)
-
-Enable `downloads.allow: true` in a file profile before using `email download <entity-id>`, `attachment download <entity-id> <attachment-id>` or `attachment download-all <entity-id>` (guide pages 131-137).
-Every command requires an absolute `--out` path to a new file in an existing directory.
-Existing files and symlinks are refused before authentication; filenames from response headers are ignored.
-The file is created exclusively with mode 0600 on POSIX or a protected DACL on Windows before any content is written.
-Binary content is buffered up to 50 MiB per response, verified against the required `x-av-sha256` header, then written and synced; failed downloads remove their new output file.
-No binary content, server filename, headers or response body enters stdout; success prints only `path`, `size` and `sha256`.
-Downloads permit one token re-exchange after 401 and two 429 retries respecting Retry-After, within 10 total requests and 60 seconds including authentication.
-TLS verification and the fixed regional gateway restriction apply throughout; redirects are refused.
-
-```sh
-checkpoint-axi email download <entity-id> --out /absolute/message
-checkpoint-axi email download <entity-id> --original --out /absolute/original
-checkpoint-axi attachment download <entity-id> <attachment-id> --out /absolute/attachment
-checkpoint-axi attachment download-all <entity-id> --out /absolute/attachments
-```
-
-Email downloads require profile `scope`, sent verbatim as the comma-separated `scopes` header required on page 131.
-`--original` selects the unmodified email; default false includes the service's processing headers.
-Attachment commands use optional `--scope` as a query selector, defaulting to profile `scope` when configured; no scope query is sent when both are absent.
-Scope authorization and the relationship between the email `scopes` header and attachment `scope` query remain unverified until owner commissioning through Artium.
-The guide specifies `x-av-sha256` for individual attachments (page 134) but omits it for email and ZIP responses (pages 132, 136).
-All three commands enforce the approved hash requirement: a missing or malformed header returns `DOWNLOAD_HASH_INVALID`, and a mismatch returns `DOWNLOAD_HASH_MISMATCH`, with output removed.
-Email/ZIP hash availability therefore remains unverified and may require a commissioning follow-up before those downloads can succeed live.
-An attachment ZIP may contain only the attachments the service could retrieve even on HTTP 200 (page 136); a successful download does not prove attachment completeness.
-Archives are saved as received, never extracted automatically.
-Environment profiles cannot enable downloads; remote mutation scope and write confirmation remain separate from this download opt-in.
-All live-only facts, including token shape/lifetime, delete requests and download scopes, remain unverified; automated tests use only synthetic offline data.
-
-## Agent discovery
-
-`checkpoint-axi-hook` emits local home context and does not install integrations or make API calls.
-Use it only when explicitly configuring a session hook.
-The generated [skill](skills/checkpoint-axi/SKILL.md) is an alternative on-demand discovery path after publication:
+For on-demand discovery, install the skill:
 
 ```sh
 npx skills add knowttl/checkpoint-axi --skill checkpoint-axi
 ```
 
-Neither path is needed for ordinary CLI use.
-Automatic hook installation and hosted Artium integration are not shipped yet.
+The skill supplies static guidance and the full command table; it grants no credentials or write permission.
+Use the hook, the skill or both; neither is required for ordinary CLI use.
+See [SKILL.md](skills/checkpoint-axi/SKILL.md) and the [command reference](docs/commands.md) for commands, flags and examples.
 
-## Development and testing
+## What it covers
 
-```sh
-corepack pnpm run build
-corepack pnpm run lint
-corepack pnpm test
-corepack pnpm run spec:check
-corepack pnpm run docs:check
-corepack pnpm run identifiers:check
-```
+<!-- command-registry:start -->
+| Group | Purpose | Access | Reference |
+|---|---|---|---|
+| attachment | Save hash-verified attachments or ZIPs to new private files | Read / local file write | [Guide](docs/downloads.md) |
+| auth | Validate local credential readiness without API calls | Local read | [Guide](docs/configuration.md) |
+| config | Show effective configuration and state paths | Local read | [Guide](docs/configuration.md) |
+| doctor | Verify authentication and one bounded search | API read | [Guide](docs/reads.md#doctor-and-transport) |
+| email | Search, inspect and download emails; preview or request quarantine/restore | Read / gated write / local file write | [Guide](docs/reads.md#email-reads) |
+| event | Inspect events and request available name-only actions | Read / gated write | [Guide](docs/writes.md#event-actions) |
+| exception | Inspect eight kinds; preview or request supported rule changes | Read / gated write | [Guide](docs/writes.md) |
+| home | Show local profile context without resolving secrets | Local read | [Guide](docs/configuration.md) |
+| profile | List named file profiles | Local read | [Guide](docs/configuration.md) |
+| task | Inspect asynchronous action status without polling | Read | [Guide](docs/reads.md#event-and-task-reads) |
+<!-- command-registry:end -->
 
-Tests deny external networking, isolate local configuration and exercise an installed tarball offline.
-The affected-test selector includes the fixed safety baseline and runs the full suite for shared infrastructure changes.
-To regenerate catalogue docs or the capability inventory:
+The command catalogue generates this overview and the full references.
+Run `checkpoint-axi <command> --help` for the selected command's flags.
+The [coverage ledger](docs/design.md#api-coverage-ledger) records documented routes and refused operations; it never enables execution.
 
-```sh
-corepack pnpm run build
-corepack pnpm run docs:generate
-corepack pnpm run spec:generate
-```
+## Safety
 
-`inventory/specs.json` pins the [vendor PDF](https://sc1.checkpoint.com/documents/Harmony_Email_and_Collaboration_API_Reference/CP_Check_Point_Email_Security_API_Reference_Guide.pdf) URL and byte hash.
-The PDF is not redistributed because its redistribution permission has not been established.
-The default check is offline and checks the ledger against generated metadata; it cannot recheck absent PDF bytes.
-After downloading a copy outside git, verify its bytes explicitly:
+Read-only by default: file profiles must explicitly enable `writes.allowWrites` and each exact operation.
+Previews also require these permissions; no wildcard or environment-only profile grants writes.
+Execution requires `--execute` and the preview's exact `--confirm`, with durable redacted intent before one send.
+`CHECKPOINT_AXI_READ_ONLY=1` overrides write permission; invalid values fail closed.
+There is no `CHECKPOINT_AXI_ALLOW_*` environment gate.
+Ambiguous outcomes are never retried; reconcile using reads before requesting another action.
+Downloads separately require file-profile `downloads.allow`, a new private output file and verified SHA-256.
+Secrets use environment/file SecretRefs, never inline config values or argv; tokens stay in memory.
+Only seven fixed public regional gateways are allowed, with verified TLS and no redirects.
+See [write gates and reconciliation](docs/writes.md), [download safety](docs/downloads.md) and [profile permissions](docs/configuration.md#write-and-download-permissions).
 
-```sh
-node scripts/specs.mjs --check --pdf /absolute/path/to/guide.pdf
-```
+## Configuration
 
-## Releases
+No command writes configuration or discovers it from the current directory.
+Use `checkpoint-axi config path` to print the effective paths.
 
-The only hosted workflow is `release-please.yml`; no pull-request test workflow is configured.
-The package and release manifest start at `0.0.0`; release-please explicitly targets `0.1.0` for the next release PR.
-Release publication runs build, lint, offline tests and metadata checks, then publishes the verified tarball with npm OIDC trusted publishing and provenance.
-The placeholder `0.0.0` package and trusted publisher are configured.
-After that release, remove the one-time `release-as` override before preparing a later version.
-No npm publishing token is used.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for testing and public-repository rules.
+| Platform | Default config | Default state directory |
+|---|---|---|
+| Linux/macOS | `~/.config/checkpoint-axi/config.json` | `~/.local/state/checkpoint-axi` |
+| Windows | `%APPDATA%\checkpoint-axi\config.json` | `%LOCALAPPDATA%\checkpoint-axi` |
+
+Config precedence: `--config`, `CHECKPOINT_AXI_CONFIG`, platform path.
+Profile precedence: `--profile`, `CHECKPOINT_AXI_PROFILE`, complete environment profile, config default, sole file profile.
+File metadata never mixes with environment-profile fields; SecretRefs may explicitly name environment variables.
+
+| Environment variable | Purpose | Default |
+|---|---|---|
+| `CHECKPOINT_AXI_CONFIG` | Config file override | Platform path |
+| `CHECKPOINT_AXI_PROFILE` | Named file profile | Selection order above |
+| `CHECKPOINT_AXI_REGION` | Environment-profile region | Required with client ID/secret |
+| `CHECKPOINT_AXI_CLIENT_ID` | Environment-profile client ID | Required with region/secret |
+| `CHECKPOINT_AXI_CLIENT_SECRET` | Environment secret source | Default SecretRef; required for env profile |
+| `CHECKPOINT_AXI_SAAS` | Environment-profile SaaS | `office365_emails` |
+| `CHECKPOINT_AXI_SCOPE` | Environment-profile download scope | Unset |
+| `CHECKPOINT_AXI_READ_ONLY` | Force read-only: `1`/`true`; `0`/`false` releases override | Unset |
+| `CHECKPOINT_AXI_WRITE_LOG` | Write journal path | State directory's `writes.log`; blank uses default |
+| `XDG_CONFIG_HOME` | Absolute config base on Linux/macOS | `~/.config` |
+| `XDG_STATE_HOME` | Absolute state base on Linux/macOS | `~/.local/state` |
+| `APPDATA` | Absolute Windows config base | `~/AppData/Roaming` |
+| `LOCALAPPDATA` | Absolute Windows state base | `~/AppData/Local` |
+
+Windows ignores XDG variables; relative base-directory overrides use platform defaults.
+SecretRefs may name additional environment variables.
+See [configuration](docs/configuration.md) for JSON, file protection, supported regions and scope handling, and the [credential schema](axi-credential.schema.json).
+
+## Output and exit codes
+
+Output, including structured errors and next-step hints, is TOON.
+Secret-derived strings are redacted before 500-character previews; `--full` restores complete strings and `--fields` selects top-level output fields where supported.
+Never replay a mutation to recover truncated output.
+Searches default to 50 rows over 24 hours; `--all` caps rows at 1000 within transport budgets.
+Inspect `complete`, `reason` and `cursor`; see [read continuation](docs/reads.md#email-reads) for page replay limitations.
+Bare `--version`, `-v` or `-V` prints the package version.
+
+| Exit | Meaning |
+|---|---|
+| 0 | Success, preview or no-op |
+| 1 | Configuration, authentication, transport or operation failure |
+| 2 | Invalid command syntax or flags (`VALIDATION_ERROR`) |
+
+## Troubleshooting
+
+| Code | Next action |
+|---|---|
+| `PROFILE_REQUIRED` | Configure a complete environment profile or a named file profile. |
+| `CONFIG_INSECURE` | Apply the [private-file permissions](docs/configuration.md) for your platform. |
+| `AUTH_SHAPE_UNVERIFIED` | Verify the undocumented token contract manually; never paste the response into chat. |
+| `ENDPOINT_UNVERIFIED` | Read the [operation limitations](docs/writes.md); the CLI refuses to guess. |
+| `OUTCOME_UNKNOWN` | Reconcile with read commands and the journal; never replay automatically. |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for offline development checks and release mechanics, and [AGENTS.md](AGENTS.md) for repository boundaries.
+
+## Security
+
+Report vulnerabilities using [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE).

@@ -67,6 +67,9 @@ test("published metadata includes credential schema, inventory and generated dis
   expect(JSON.parse(readFileSync(join(packageRoot, "axi-credential.schema.json"), "utf8")).properties.clientSecret["x-secret"]).toBe(true);
   expect(existsSync(join(packageRoot, "skills/checkpoint-axi/SKILL.md"))).toBe(true);
   expect(existsSync(join(packageRoot, "docs/commands.md"))).toBe(true);
+  for (const guide of ["configuration", "reads", "writes", "downloads", "design"]) {
+    expect(existsSync(join(packageRoot, `docs/${guide}.md`))).toBe(true);
+  }
   expect(JSON.parse(readFileSync(join(packageRoot, "inventory/capabilities.json"), "utf8")).coverage).toHaveLength(20);
 });
 

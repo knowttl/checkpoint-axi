@@ -9,7 +9,18 @@ Do not refactor adjacent code or hand-edit generated artifacts or changelogs.
 
 ## Verification
 
-Run the commands in [README](README.md) before review.
+Use Node.js 22.12 or later and pnpm through Corepack.
+Install dependencies with `corepack pnpm install --frozen-lockfile --ignore-scripts`, then run these checks before review:
+
+```sh
+corepack pnpm run build
+corepack pnpm run lint
+corepack pnpm test
+corepack pnpm run spec:check
+corepack pnpm run docs:check
+corepack pnpm run identifiers:check
+```
+
 Automated checks must work offline with synthetic data, the network-deny guard and isolated HOME/XDG/agent directories.
 The test command builds and typechecks, then selects tests affected by changes since the merge base with `origin/main`, including tracked working changes and untracked files.
 It always runs the packaged CLI, profile safety, network guard and identifier guard baseline.
@@ -32,3 +43,12 @@ Use synthetic examples and page-cited public API facts.
 Run the identifier guard and review the staged diff before committing.
 Keep process notes outside git, each full Markdown sentence on its own line, and use plain dashes.
 Do not add agent co-author trailers automatically.
+
+## Releases
+
+The package version, release manifest, changelog and tags record released versions.
+Release-please prepares subsequent versions from conventional commits without a one-time `release-as` override.
+The only hosted workflow is `release-please.yml`; pull-request test workflows are deliberately absent.
+Release publication runs build, lint, offline tests and metadata checks, then publishes a verified tarball with npm OIDC trusted publishing and provenance.
+No npm publishing token is used.
+Do not hand-edit the changelog or generated release artifacts.
