@@ -43,6 +43,7 @@ ${generated}
 # checkpoint-axi
 
 ${DESCRIPTION}.
+Start investigations with the compact [agent guide](../../docs/agent-guide.md), which includes the read allowlist, bounded one-call forms and failure recovery.
 See [README's introduction](../../README.md#checkpoint-axi) for shipped capabilities and [write guidance](../../docs/writes.md#email-writes) before requesting mutations.
 Use \`npx -y @knowttl/checkpoint-axi\` without a global install.
 Bare \`--version\`, \`-v\` and \`-V\` print the package version.
@@ -110,12 +111,121 @@ All live-only facts remain unverified, including token response shape and lifeti
 
 ${table("npx -y @knowttl/checkpoint-axi")}
 `;
+const agentGuide = `${generated}
+
+# Investigation agent guide
+
+Start with these reads; use command help only to recover from a failed command or inspect an unfamiliar selector.
+Examples assume an installed checkpoint-axi and an operator-provisioned read-only profile (the repository tests use synthetic credentials and a fake gateway).
+Without a global install, replace checkpoint-axi with npx -y @knowttl/checkpoint-axi.
+Never pass credentials in argv; use environment/file SecretRefs as described in [configuration](configuration.md).
+Force read-only with CHECKPOINT_AXI_READ_ONLY=1; this overrides profile write permissions.
+Live API contracts remain uncommissioned; fixture success does not establish live compatibility.
+
+## Read commands and examples
+
+Local readiness checks make no API calls:
+
+\`\`\`sh
+checkpoint-axi
+checkpoint-axi config path
+checkpoint-axi profile list
+checkpoint-axi auth status
+\`\`\`
+
+The home view shows local profile context, config path shows effective paths, profile list lists file profiles, and auth status validates the selected secret source locally.
+Add --profile <name> or --config <absolute-path> to select provisioned configuration; profile list ignores --profile.
+Doctor authenticates and checks one search page without printing email data:
+
+\`\`\`sh
+checkpoint-axi doctor
+\`\`\`
+
+Search emails, then inspect a returned entity ID for payload, verdicts, actions taken and available actions:
+
+\`\`\`sh
+checkpoint-axi email search --limit 5 --fields emails,count,total,complete,reason,cursor
+checkpoint-axi email show synthetic-email-1 --fields email
+\`\`\`
+
+Search flags: --saas (default profile SaaS or office365_emails), --saas-entity, and --filter (JSON array of {saasAttrName, saasAttrOp, saasAttrValue}).
+Event selectors include --event-types, --event-states, --severities, --event-ids (comma-separated), --confidence-indicator and --description; --saas accepts comma-separated SaaS values here.
+Event detail includes available actions; task detail reads status and per-action results once, without waiting or polling:
+
+\`\`\`sh
+checkpoint-axi event list --all --event-types phishing --fields events,count,total,complete,reason,cursor
+checkpoint-axi event show synthetic-event-1 --fields event
+checkpoint-axi task show synthetic-task-1 --fields task
+\`\`\`
+
+Inspect exception rules with exception list <kind> or exception show <kind> <id-or-value>:
+
+\`\`\`sh
+checkpoint-axi exception list phishing-block --limit 5 --fields exceptions,count,total,complete,reason
+checkpoint-axi exception show phishing-block synthetic-exception-1 --fields exception
+\`\`\`
+
+Kinds: phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url, dlp.
+For malware, --type is required: hash, micro_hash, file_type, ppat_sender_name, allow_file_type or sender_email.
+For url, --type is allow-url, allow-domain, block-url or block-domain; for dlp, hash, text_content, sender_email or recipient_email.
+Click-time --items selects item routes instead of list routes.
+Anomaly show is refused with ENDPOINT_UNVERIFIED; use anomaly list.
+Undocumented response shapes carry responseSchema: unverified; do not infer identities from them.
+
+## One-call forms and output bounds
+
+Email search and event list --all follow scroll pages in one invocation, capped at 1000 rows, 10 HTTP requests, 60 seconds and 8 MiB of JSON, including authentication and read retries.
+Both default to 50 rows over the past 24 hours; --limit accepts 1-1000 and cannot combine with --all.
+Use --start-date and --end-date with ISO timestamps including timezones; the positive window cannot exceed 31 days.
+Inspect complete, reason and cursor even on exit 0; limits and page replay can leave results incomplete.
+Resume with --cursor <returned-cursor> and the original selectors/profile; see [continuation limitations](reads.md#email-reads).
+Exception --all bounds returned rows at 1000 but cannot fetch additional pages: no continuation parameter is documented.
+Email/event detail already includes available actions, avoiding a separate action lookup.
+There is no bulk detail expansion, cross-resource pivot or task wait flag; use returned IDs for individual reads and never replay an action to obtain its status.
+
+--fields selects top-level output keys, not nested row columns: request emails or events together with count,total,complete,reason,cursor for lists, and email,event,task or exception for details.
+Email rows contain id,subject,state,verdict; event rows contain id,type,state,severity; documented exception rows contain id,sender,subject,comment.
+TOON strings preview at 500 characters; --full expands strings after redaction, while cursors are never truncated.
+
+## Help and safety
+
+Top-level --help returns the full command catalogue, common flags, version flags and home examples.
+Group --help (such as email --help) is unsupported and returns VALIDATION_ERROR with the valid command list; select a leaf command directly.
+Leaf command --help returns its description, accepted flags with defaults, and examples; positional arguments appear in those examples.
+Use the failing leaf's help to correct syntax; do not run a help sweep before investigating.
+
+Reviewed read allowlist: home (also no arguments), config path, profile list, auth status, doctor, email search, email show, event list, event show, task show, exception list, exception show (except unsupported anomaly detail).
+These commands never mutate remote state or save downloaded files; API authentication exchanges tokens held only in memory.
+Exclude email quarantine/restore, event action and every exception create/update/remove/remove-items/clear command, including previews and --specific creates, from an investigation read allowlist.
+Writes require exact profile operation scope, preview, --execute, exact --confirm and durable redacted intent; forced read-only always wins.
+Email download and attachment download/download-all write local files and require separate download opt-in; they are outside the read allowlist.
+See [write safety](writes.md) and [download safety](downloads.md) before requesting them.
+
+## Failure recovery
+
+Exit 0 means success, preview or no-op; 2 means invalid syntax (VALIDATION_ERROR); 1 means configuration, authentication, transport or operation failure.
+Structured errors and suggestions are on stdout; follow the code and suggestion instead of retrying blindly.
+
+| Code | Meaning and next action |
+|---|---|
+| VALIDATION_ERROR | Invalid flags, IDs, date window or mismatched cursor selectors; correct the failed command. |
+| PROFILE_REQUIRED / CONFIG_INVALID | Missing or invalid configuration; select a complete provisioned profile. |
+| CONFIG_INSECURE | Fix private-file permissions using the configuration guide. |
+| AUTH_FAILED | Check region and secret source; the CLI already attempts one token re-exchange after API rejection. |
+| AUTH_SHAPE_UNVERIFIED / ENDPOINT_UNVERIFIED | Contract is undocumented; request owner commissioning, never guess a route or token shape. |
+| NOT_FOUND | No matching detail record; verify the ID and profile using a list read. |
+| RESPONSE_INVALID / API_ERROR / HTTP_ERROR | Unexpected response or upstream failure; inspect the redacted error and verify service/profile before retrying. |
+| RATE_LIMITED | Two read retries exhausted; defer work instead of immediate repeated calls. |
+| REQUEST_BUDGET / TIME_BUDGET / RESPONSE_TOO_LARGE | Reduce date window or limit; inspect incomplete results and continuation before another bounded read. |
+| WRITES_DISABLED / DOWNLOADS_DISABLED | Operation is outside profile permissions; do not loosen permissions during investigation. |
+| OUTCOME_UNKNOWN | A mutation may have happened; reconcile with reads and the journal, never replay automatically. |
+`;
 const readmePath = new URL("README.md", root);
 const readme = readFileSync(readmePath, "utf8");
 const start = "<!-- command-registry:start -->\n", end = "\n<!-- command-registry:end -->";
 if (readme.split(start).length !== 2 || readme.split(end).length !== 2) throw new Error("README command registry markers missing or duplicated");
 const summary = `${readme.split(start)[0]}${start}${groupTable}${end}${readme.split(end)[1]}`;
-const outputs = new Map([["docs/commands.md", `${reference.trimEnd()}\n`], ["skills/checkpoint-axi/SKILL.md", skill], ["README.md", summary]]);
+const outputs = new Map([["docs/agent-guide.md", agentGuide], ["docs/commands.md", `${reference.trimEnd()}\n`], ["skills/checkpoint-axi/SKILL.md", skill], ["README.md", summary]]);
 let stale = false;
 for (const [path, content] of outputs) {
   const url = new URL(path, root);

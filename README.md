@@ -56,7 +56,8 @@ npx skills add knowttl/checkpoint-axi --skill checkpoint-axi
 
 The skill supplies static guidance and the full command table; it grants no credentials or write permission.
 Use the hook, the skill or both; neither is required for ordinary CLI use.
-See [SKILL.md](skills/checkpoint-axi/SKILL.md) and the [command reference](docs/commands.md) for commands, flags and examples.
+Start investigations with the compact [agent guide](docs/agent-guide.md), linked from [SKILL.md](skills/checkpoint-axi/SKILL.md).
+Use the [command reference](docs/commands.md) for the full catalogue.
 
 ## What it covers
 

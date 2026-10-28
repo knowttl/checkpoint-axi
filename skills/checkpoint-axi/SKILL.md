@@ -8,6 +8,7 @@ description: "Inspect Check Point Email Security emails, events, tasks and excep
 # checkpoint-axi
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
+Start investigations with the compact [agent guide](../../docs/agent-guide.md), which includes the read allowlist, bounded one-call forms and failure recovery.
 See [README's introduction](../../README.md#checkpoint-axi) for shipped capabilities and [write guidance](../../docs/writes.md#email-writes) before requesting mutations.
 Use `npx -y @knowttl/checkpoint-axi` without a global install.
 Bare `--version`, `-v` and `-V` print the package version.
