@@ -6,6 +6,34 @@ Inspect Check Point Email Security through compact, guarded AXI commands.
 Email, event, task and exception reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.
 Run each command with `--help` for concise help.
 
+[attachment download](#attachment-download) | [attachment download-all](#attachment-download-all) | [auth status](#auth-status) | [config path](#config-path) | [doctor](#doctor) | [email download](#email-download) | [email quarantine](#email-quarantine) | [email restore](#email-restore) | [email search](#email-search) | [email show](#email-show) | [event action](#event-action) | [event list](#event-list) | [event show](#event-show) | [exception clear](#exception-clear) | [exception create](#exception-create) | [exception list](#exception-list) | [exception remove](#exception-remove) | [exception remove-items](#exception-remove-items) | [exception show](#exception-show) | [exception update](#exception-update) | [home](#home) | [profile list](#profile-list) | [task show](#task-show)
+
+| Command | Purpose |
+|---|---|
+| `checkpoint-axi attachment download` | Download one attachment to a new private file with profile opt-in, a 50 MiB cap and verified x-av-sha256; scope behavior is unverified (guide pages 133-135) |
+| `checkpoint-axi attachment download-all` | Download available attachments as a ZIP to a new private file with opt-in, a 50 MiB cap and mandatory SHA-256 verification; ZIP hash availability and scopes are unverified; HTTP 200 may contain only some attachments (guide pages 135-137) |
+| `checkpoint-axi auth status` | Validate the selected local profile and secret source without API calls |
+| `checkpoint-axi config path` | Show config and state paths without reading files; --profile does not affect paths |
+| `checkpoint-axi doctor` | Check regional API authentication and one bounded email search without printing tenant data |
+| `checkpoint-axi email download` | Download an email to a new private file with profile opt-in, a 50 MiB cap and mandatory SHA-256 verification; scopes and email hash availability are unverified (guide pages 131-132) |
+| `checkpoint-axi email quarantine` | Preview or request asynchronous email quarantine through the gated write coordinator (guide pages 28-30) |
+| `checkpoint-axi email restore` | Preview or request asynchronous email restore through the gated write coordinator (guide pages 28-30) |
+| `checkpoint-axi email search` | Search emails with a bounded date window and scroll continuation (API guide pages 18-27) |
+| `checkpoint-axi email show` | Show one email with verdicts, actions and available actions (API guide pages 10-18) |
+| `checkpoint-axi event action` | Preview or request a name-only event action; parameterized actions refuse ENDPOINT_UNVERIFIED pending commissioning (guide pages 35-37, 42-45) |
+| `checkpoint-axi event list` | List security events with bounded scroll continuation (API guide pages 37-42) |
+| `checkpoint-axi event show` | Show one event, actions taken and available actions (API guide pages 34-37) |
+| `checkpoint-axi exception clear` | Refuse click-time/malware/url/dlp clear with ENDPOINT_UNVERIFIED until commissioning establishes counts and delete contracts (guide pages 87-88, 96-97, 107-110, 117-120, 128-131) |
+| `checkpoint-axi exception create` | Preview or create one exception of any kind; anomaly/click-time/malware/url/dlp response identities are unverified (guide pages 61-64, 75-78, 84-85, 91-93, 102-105, 113-116, 123-126) |
+| `checkpoint-axi exception list` | List bounded exceptions for phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url or dlp (guide pages 49-123) |
+| `checkpoint-axi exception remove` | Preview or remove one phishing/spam/anomaly/click-time exception by ID; malware/url/dlp refuse ENDPOINT_UNVERIFIED before authentication (guide pages 67-69, 81-82, 85-87, 98-99, 108-110, 119-120, 129-131) |
+| `checkpoint-axi exception remove-items` | Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98) |
+| `checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
+| `checkpoint-axi exception update` | Preview or replace one exception; phishing/spam/click-time require an ID; malware/url/dlp identify it in --input without an ID; anomaly unsupported (guide pages 64-67, 78-81, 94-96, 105-107, 116-117, 126-127) |
+| `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
+| `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
+| `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
+
 ## attachment download
 
 Download one attachment to a new private file with profile opt-in, a 50 MiB cap and verified x-av-sha256; scope behavior is unverified (guide pages 133-135)

@@ -12,7 +12,9 @@ commands:
   lint: 'node scripts/isolated.mjs corepack pnpm run lint'
 document:
   instructions: |
-    README.md owns shipped behavior and development commands.
+    README.md owns the quickstart and command-group overview.
+    docs/commands.md and skills/checkpoint-axi/SKILL.md own the generated command reference.
+    docs/configuration.md, docs/reads.md, docs/writes.md and docs/downloads.md own behavior details.
     AGENTS.md and CONTRIBUTING.md own contribution and offline testing rules.
     docs/design.md owns security invariants, API dispositions and the twelve slices.
     inventory/specs.json pins the vendor PDF URL and byte hash; the PDF is not redistributed.
