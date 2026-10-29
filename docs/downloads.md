@@ -17,6 +17,8 @@ checkpoint-axi attachment download-all <entity-id> --out /absolute/attachments
 ```
 
 Email downloads require profile `scope`, sent verbatim as the comma-separated `scopes` header required on page 131.
+Without it, email download fails before authentication.
+See [SaaS and scope](configuration.md#saas-and-scope) for the profile value's source and format.
 `--original` selects the unmodified email; default false includes the service's processing headers.
 Attachment commands use optional `--scope` as a query selector, defaulting to profile `scope` when configured; no scope query is sent when both are absent.
 Scope authorization and the relationship between the email `scopes` header and attachment `scope` query require manual verification.

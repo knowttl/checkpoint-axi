@@ -39,6 +39,28 @@ test.each([
   expect(result.output).not.toContain("synthetic-inline-secret");
 });
 
+test.each(["https://example.test", "example.test/auth", "office365_emails/"])("file profiles reject a URL-shaped SaaS: %s", async (saas) => {
+  const f = fixture();
+  f.profile.profiles.example.saas = saas;
+  f.save();
+  const result = await f.run(["auth", "status"]);
+  expect(result.code).toBe(1);
+  expect(result.data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+  expect(result.output).toContain("SaaS application name");
+  expect(result.output).not.toContain(saas);
+});
+
+test.each(["https://example.test", "example.test/auth", "office365_emails/"])("environment profiles reject a URL-shaped SaaS: %s", async (saas) => {
+  const f = fixture();
+  Object.assign(f.env, { CHECKPOINT_AXI_REGION: "ca", CHECKPOINT_AXI_CLIENT_ID: "synthetic-env-client",
+    CHECKPOINT_AXI_CLIENT_SECRET: "synthetic-env-secret", CHECKPOINT_AXI_SAAS: saas });
+  const result = await f.run(["auth", "status"]);
+  expect(result.code).toBe(1);
+  expect(result.data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+  expect(result.output).toContain("SaaS application name");
+  expect(result.output).not.toContain(saas);
+});
+
 test.each([
   ["config-default", "example", undefined],
   ["config-default", "example", { env: "CHECKPOINT_AXI_CLIENT_SECRET" }],
