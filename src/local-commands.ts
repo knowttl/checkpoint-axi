@@ -36,7 +36,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--items", "--specific", "--original", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--full", "--all", "--expand", "--items", "--specific", "--original", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -45,7 +45,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   }
   if (flags.has("--help")) return { command: name, ...entry };
   const available = isException ? name === "exception list" ? ["exceptions", "count", "total", "complete", "reason", "responseSchema", "help"] : ["exception", "responseSchema"]
-    : name === "email search" || name === "event list" ? [name === "event list" ? "events" : "emails", "count", "total", "complete", "reason", "cursor", "help"] : name.endsWith(" show") ? [name.split(" ")[0]!]
+    : name === "email search" || name === "event list" ? [name === "event list" ? "events" : "emails", "count", "total", "complete", "reason", "cursor", "expansion", "help"] : name.endsWith(" show") ? [name.split(" ")[0]!]
     : name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];

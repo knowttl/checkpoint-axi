@@ -37,6 +37,11 @@ export async function readCommand(name: "email search" | "email show" | "event l
   if (!/^[1-9][0-9]*$/.test(limitText) || Number(limitText) > READ_LIMITS.rows) invalid("--limit must be an integer from 1 to 1000");
   if (flags.has("--all") && flags.has("--limit")) invalid("Use either --all or --limit");
   const limit = flags.has("--all") ? READ_LIMITS.rows : Number(limitText);
+  if (!flags.has("--expand") && (flags.has("--expand-limit") || flags.has("--expand-requests"))) invalid("Expansion limits require --expand");
+  const expandLimitText = flags.get("--expand-limit") ?? "5";
+  const expandRequestsText = flags.get("--expand-requests") ?? "10";
+  if (!/^[1-8]$/.test(expandLimitText)) invalid("--expand-limit must be an integer from 1 to 8");
+  if (!/^(?:[2-9]|10)$/.test(expandRequestsText)) invalid("--expand-requests must be an integer from 2 to 10");
   let extended: z.infer<typeof filters> | undefined;
   if (flags.has("--filter")) {
     let raw: unknown;
@@ -81,10 +86,11 @@ export async function readCommand(name: "email search" | "email show" | "event l
   const binding = createHash("sha256").update(JSON.stringify({ profile: profile.name, client: profile.clientId,
     origin: REGIONS[profile.region], operation: name, ...(isEvent ? { selectors } : { entityFilter, extended }) })).digest("hex");
   if (cursor && cursor.binding !== binding) invalid("Cursor does not match this profile, region or search selectors; repeat the original selectors");
-  const api = gateway(profile, store.credentials(profile, true), store.redactor, transport);
-  if (name.endsWith(" show")) {
+  const api = gateway(profile, store.credentials(profile, true), store.redactor, transport, false, Number(expandRequestsText));
+  async function detail(id: string) {
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new AxiError("Invalid detail ID", "RESPONSE_INVALID", []);
     const kind = name.split(" ")[0]!;
-    const page = await api.read({ path: name === "task show" ? `/task/${id!}` : isEvent ? `/event/${id!}` : `/search/entity/${id!}` });
+    const page = await api.read({ path: name === "task show" ? `/task/${id}` : isEvent ? `/event/${id}` : `/search/entity/${id}` });
     const response = { responseData: page.dataIsArray ? page.records : page.records[0] };
     const recordPath = page.dataIsArray ? ["responseData", 0] : ["responseData"];
     if (page.records.length === 0) throw new AxiError(`${kind} was not found`, "NOT_FOUND", []);
@@ -96,8 +102,9 @@ export async function readCommand(name: "email search" | "email show" | "event l
     const returnedId = name === "task show" ? String(record.id) : isEvent ? record.eventId : (record.entityInfo as { entityId?: string } | undefined)?.entityId;
     if (returnedId !== id) throw responseInvalid(`Invalid ${kind} detail response`, response,
       [[...recordPath, ...(name === "task show" ? ["id"] : isEvent ? ["eventId"] : ["entityInfo", "entityId"])]]);
-    return { [kind]: parsed.data };
+    return parsed.data;
   }
+  if (name.endsWith(" show")) return { [name.split(" ")[0]!]: await detail(id!) };
   const results: Record<string, unknown>[] = [];
   let scroll = cursor?.scroll;
   let offset = cursor?.offset ?? 0;
@@ -137,7 +144,33 @@ export async function readCommand(name: "email search" | "email show" | "event l
   }
   const next = exhausted ? undefined : Buffer.from(JSON.stringify({ version: 1, binding, start, end, scroll, offset,
     ...(replayRisk ? { replayRisk: true } : {}) })).toString("base64url");
+  let expansion: Record<string, unknown> | undefined;
+  if (flags.has("--expand")) {
+    let attempted = 0;
+    let expanded = 0;
+    let stopped: { reason: string; code: string } | undefined;
+    const notExpanded: { id: string; reason: string; code?: string }[] = [];
+    for (const row of results) {
+      const itemId = row.id as string;
+      if (stopped) { notExpanded.push({ id: itemId, ...stopped }); continue; }
+      if (attempted >= Number(expandLimitText)) { notExpanded.push({ id: itemId, reason: "item-cap-reached" }); continue; }
+      attempted++;
+      try {
+        row.detail = await detail(itemId);
+        expanded++;
+      } catch (error) {
+        if (!(error instanceof AxiError)) throw error;
+        const code = error.code;
+        if (["REQUEST_BUDGET", "TIME_BUDGET", "RESPONSE_TOO_LARGE"].includes(code)) {
+          stopped = { reason: code === "REQUEST_BUDGET" ? "request-cap-reached" : "budget-exhausted", code };
+          notExpanded.push({ id: itemId, ...stopped });
+        } else notExpanded.push({ id: itemId, reason: "per-item-error", code });
+      }
+    }
+    expansion = { expanded, attempted, itemLimit: Number(expandLimitText), requestLimit: Number(expandRequestsText), complete: notExpanded.length === 0, notExpanded };
+  }
   return { [isEvent ? "events" : "emails"]: results, count: results.length, ...(total === undefined ? {} : { total }), complete: exhausted && !replayRisk,
+    ...(expansion ? { expansion } : {}),
     ...(replayRisk ? { reason: "replay-may-skip-or-repeat" } : {}), ...(next ? { cursor: next } : {}),
     help: [...(results.length ? [isEvent ? "Run checkpoint-axi event show <id> for event details and available actions" : "Run checkpoint-axi email show <id> for verdicts, actions and available actions"] : [`No ${isEvent ? "events" : "emails"} matched this search window and selectors`]),
       ...(next ? ["Repeat this search with --cursor <cursor> and the original selectors to continue"] : []),

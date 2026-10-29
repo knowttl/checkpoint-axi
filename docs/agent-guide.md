@@ -74,7 +74,20 @@ Inspect complete, reason and cursor even on exit 0; limits and page replay can l
 Resume with --cursor <returned-cursor> and the original selectors/profile; see [continuation limitations](reads.md#email-reads).
 Exception --all bounds returned rows at 1000 but cannot fetch additional pages: no continuation parameter is documented.
 Email/event detail already includes available actions, avoiding a separate action lookup.
-There is no bulk detail expansion, cross-resource pivot or task wait flag; use returned IDs for individual reads and never replay an action to obtain its status.
+Email search and event list accept --expand for read-only show details in each successful row's detail field.
+Expansion is off by default; --expand-limit caps detail attempts (default 5, range 1-8), and --expand-requests caps total HTTP requests (default 10, range 2-10), including auth, list pages and retries.
+Both limit flags require --expand; listing runs first and shares the 60-second and 8 MiB transport budgets with detail reads.
+Inspect the expansion object's expanded, complete and notExpanded fields for every unexpanded ID and its reason: item-cap-reached, request-cap-reached, budget-exhausted or per-item-error (with an error code).
+Partial expansion keeps every list row and successful detail; list complete/cursor describe pagination separately.
+Use --fields emails,expansion or --fields events,expansion to retain expansion status; --full restores full strings after redaction.
+With --all, list pages can consume the entire request budget before any detail is expanded; reduce the list limit or use individual show reads for remaining IDs.
+Expansion never downloads files, invokes available actions or changes remote state.
+There is no cross-resource pivot or task wait flag; use returned IDs for individual reads and never replay an action to obtain its status.
+
+```sh
+checkpoint-axi email search --limit 5 --expand --expand-limit 3 --expand-requests 6 --fields emails,count,complete,cursor,expansion
+checkpoint-axi event list --limit 5 --expand --fields events,count,complete,cursor,expansion
+```
 
 --fields selects top-level output keys, not nested row columns: request emails or events together with count,total,complete,reason,cursor for lists, and email,event,task or exception for details.
 Email rows contain id,subject,state,verdict; event rows contain id,type,state,severity; documented exception rows contain id,sender,subject,comment.

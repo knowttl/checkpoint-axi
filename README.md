@@ -59,6 +59,9 @@ Use the hook, the skill or both; neither is required for ordinary CLI use.
 Start investigations with the compact [agent guide](docs/agent-guide.md), linked from [SKILL.md](skills/checkpoint-axi/SKILL.md).
 Use the [command reference](docs/commands.md) for the full catalogue.
 
+Email search and event list support opt-in read-only detail expansion with `--expand`.
+See [bounded detail expansion](docs/reads.md#bounded-detail-expansion) for limits, shared budgets, partial results and examples.
+
 ## What it covers
 
 <!-- command-registry:start -->
