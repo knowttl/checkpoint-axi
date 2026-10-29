@@ -179,7 +179,7 @@ test.each(["/auth/external", "/app/hec-api/v1.0/exceptions/whitelist"])("truncat
 
 test("envelope normalization preserves scroll and accepts object records", () => {
   expect(decodePage({ responseEnvelope: { responseCode: 0, scrollId: "synthetic-scroll", totalRecordsNumber: 2 }, responseData: { entityId: "synthetic-entity" } }))
-    .toEqual({ records: [{ entityId: "synthetic-entity" }], scrollId: "synthetic-scroll", total: 2 });
+    .toEqual({ records: [{ entityId: "synthetic-entity" }], dataIsArray: false, scrollId: "synthetic-scroll", total: 2 });
 });
 test.each([{}, { ...page, responseEnvelope: { responseCode: 403 } }, { ...page, responseData: "invalid" }])("invalid or failed envelopes cannot pass a read: %j", (value) => {
   expect(() => decodePage(value)).toThrow();

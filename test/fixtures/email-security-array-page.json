@@ -1,0 +1,42 @@
+{
+  "responseEnvelope": {
+    "requestId": "00000000-0000-4000-8000-000000000003",
+    "responseCode": 0,
+    "recordsNumber": 1,
+    "totalRecordsNumber": 1,
+    "scrollId": ""
+  },
+  "responseData": [{
+    "entityInfo": {
+      "entityId": "synthetic-email-array",
+      "customerId": "synthetic-customer",
+      "saas": "office365_emails",
+      "saasEntityType": "office365_emails_email",
+      "entityCreated": "2026-01-01T12:00:00.000Z",
+      "entityUpdated": "2026-01-01T12:01:00.000Z",
+      "entityActionState": "Clean"
+    },
+    "entityPayload": {
+      "internetMessageId": "<synthetic-message@example.test>",
+      "subject": "Synthetic inspected message",
+      "received": "2026-01-01T12:00:00.000Z",
+      "fromEmail": "sender@example.test",
+      "to": ["recipient@example.test"],
+      "attachmentCount": 0,
+      "isQuarantined": false
+    },
+    "entitySecurityResults": [{
+      "entityId": "synthetic-email-array",
+      "entityType": "office365_emails_email",
+      "payload": {},
+      "score": "0.0",
+      "securityResultEntityId": "synthetic-scan",
+      "securityResultEntityType": "checkpoint_ap_scan",
+      "statusCode": "0",
+      "statusDescription": "Clean",
+      "verdict": "clean"
+    }],
+    "entityActions": [],
+    "entityAvailableActions": [{ "entityActionName": "quarantine", "entityActionParam": "" }]
+  }]
+}

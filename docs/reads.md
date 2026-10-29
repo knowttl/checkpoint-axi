@@ -30,6 +30,8 @@ Search defaults to the past 24 hours and 50 rows; `--start-date` and `--end-date
 `--saas` overrides the selected profile and `--saas-entity` optionally selects the entity type.
 `--filter` accepts a JSON array of the documented `saasAttrName`, `saasAttrOp` and `saasAttrValue` filters (guide pages 19-20).
 For example, `--filter '[{"saasAttrName":"entityPayload.subject","saasAttrOp":"contains","saasAttrValue":"Synthetic"}]'` selects a subject substring.
+The [generated search reference](commands.md#email-search) lists documented field paths and operators, also available in `email search --help`.
+The guide uses field paths rather than a closed attribute enum and does not specify a per-field operator compatibility matrix.
 Use `--limit <1-1000>` or `--all`, which stops at 1,000 rows, 10 HTTP requests, 60 seconds or 8 MiB, including authentication and retries.
 Incomplete searches return `complete: false`; when an opaque `cursor` is present, repeat with `--cursor <cursor>` and the same original selectors to continue.
 Cursors preserve the original window, bind profile/client identity, regional origin, operation and selectors, and retain an offset when a row limit splits a server page.
@@ -39,6 +41,13 @@ Continuation at a whole-page boundary can report `complete: true` on reaching th
 Treat cursors as sensitive search state and do not edit them.
 Cursor strings are never truncated; email text is redacted before 500-character previews, with `--full` for complete text.
 See [downloads](downloads.md) for private file output.
+
+The vendor PDF describes `entitySecurityResults` as an array in its prose/table (pages 11 and 14), while its JSON examples use an object.
+Both documented forms are accepted; detail preserves them, and search reports `verdict: null` for an array because no combined verdict object is documented there.
+Other response constraints remain unchanged.
+`RESPONSE_INVALID` diagnostics for these reads name failing JSON paths and received types, including `missing`, without response values.
+Non-identifier path keys appear as `<key>`.
+These diagnostics support owner commissioning; the actual failing fields behind TD-049's live unfiltered-search and spam-detail failures remain unverified.
 
 ## Event and task reads
 

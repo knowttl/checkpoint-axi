@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { catalogue, DESCRIPTION, SETUP_GUIDANCE } from "../dist/src/catalogue.js";
+import { catalogue, DESCRIPTION, SETUP_GUIDANCE, EMAIL_FILTER_GUIDANCE } from "../dist/src/catalogue.js";
 
 const root = new URL("../", import.meta.url);
 const check = process.argv.includes("--check");
@@ -75,6 +75,7 @@ Both are bounded by 8 MiB of JSON and 60 seconds including auth and read retries
 Email search defaults to 50 compact rows and a 24-hour window; --start-date and --end-date require ISO timestamps with timezones and a positive window of at most 31 days (guide pages 18-27).
 Use --limit <1-1000> or --all, which caps output at 1000 rows within the shared transport budget.
 Use --saas-entity for an entity type or --filter for a JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20).
+${EMAIL_FILTER_GUIDANCE.replaceAll(". ", ".\n")}
 See [email-read guidance](../../docs/reads.md#email-reads) for continuation, completion status, cursor safety and page replay limitations.
 Email show <id> includes payload, verdicts, actions taken and available actions (guide pages 10-18).
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.
@@ -149,6 +150,7 @@ checkpoint-axi email show synthetic-email-1 --fields email
 \`\`\`
 
 Search flags: --saas (default profile SaaS or office365_emails), --saas-entity, and --filter (JSON array of {saasAttrName, saasAttrOp, saasAttrValue}).
+${EMAIL_FILTER_GUIDANCE.replaceAll(". ", ".\n")}
 Event selectors include --event-types, --event-states, --severities, --event-ids (comma-separated), --confidence-indicator and --description; --saas accepts comma-separated SaaS values here.
 Event detail includes available actions; task detail reads status and per-action results once, without waiting or polling:
 
@@ -224,7 +226,7 @@ const readmePath = new URL("README.md", root);
 const readme = readFileSync(readmePath, "utf8");
 const start = "<!-- command-registry:start -->\n", end = "\n<!-- command-registry:end -->";
 if (readme.split(start).length !== 2 || readme.split(end).length !== 2) throw new Error("README command registry markers missing or duplicated");
-const summary = `${readme.split(start)[0]}${start}${groupTable}${end}${readme.split(end)[1]}`;
+const summary = `${readme.split(start)[0]}${start}${groupTable}\n\nEmail search --filter accepts a JSON array of {saasAttrName, saasAttrOp, saasAttrValue}.\n${EMAIL_FILTER_GUIDANCE.replaceAll(". ", ".\n")}${end}${readme.split(end)[1]}`;
 const outputs = new Map([["docs/agent-guide.md", agentGuide], ["docs/commands.md", `${reference.trimEnd()}\n`], ["skills/checkpoint-axi/SKILL.md", skill], ["README.md", summary]]);
 let stale = false;
 for (const [path, content] of outputs) {

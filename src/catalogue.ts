@@ -2,6 +2,11 @@ import { exceptionFamilies } from "./exceptions.js";
 
 export const DESCRIPTION = "Inspect Check Point Email Security through compact, guarded AXI commands";
 export const SETUP_GUIDANCE = "Run checkpoint-axi config path; configure a region, clientId and clientSecret env/file SecretRef";
+export const EMAIL_PAYLOAD_ATTRIBUTES = ["subject", "fromEmail", "attachmentCount", "internetMessageId", "received", "size", "emailLinks", "attachments", "mode", "recipients", "fromDomain", "fromUser", "fromName", "to", "toUser", "cc", "ccUser", "bcc", "bccUser", "replyToEmail", "replyToNickname", "isRead", "isDeleted", "isIncoming", "isInternal", "isOutgoing", "isQuarantined", "isQuarantineNotification", "isRestored", "isRestoreRequested", "isRestoreDeclined", "saasSpamVerdict", "SpfResult"].map((name) => `entityPayload.${name}`);
+export const EMAIL_FILTER_GUIDANCE = "saasAttrName is a field path, not a closed enum (guide pages 19-20). Documented examples: "
+  + EMAIL_PAYLOAD_ATTRIBUTES.slice(0, 3).join(", ") + ". Other documented email payload paths (pages 15-16, 24-25): "
+  + EMAIL_PAYLOAD_ATTRIBUTES.slice(3).join(", ")
+  + ". saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan. The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan. saasAttrValue is a string.";
 
 const common = {
   config: "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
@@ -86,7 +91,7 @@ export const catalogue = {
     saas: "SaaS override; default selected profile saas or office365_emails",
     "saas-entity": "Optional SaaS entity type selector",
     ...paging,
-    filter: "JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20)",
+    filter: `JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters. ${EMAIL_FILTER_GUIDANCE}`,
   }, examples: ["checkpoint-axi email search", "checkpoint-axi email search --all --saas office365_emails", "checkpoint-axi email search --cursor <cursor>"] },
   "email show": { description: "Show one email with verdicts, actions and available actions (API guide pages 10-18)", flags: common,
     examples: ["checkpoint-axi email show <id>", "checkpoint-axi email show <id> --full"] },

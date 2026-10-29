@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { credentialStore } from "./profiles.js";
 import { REGIONS } from "./regions.js";
 import { gateway, READ_LIMITS, type ReadRequest } from "./transport.js";
+import { responseInvalid } from "./response-invalid.js";
 
 const day = 86_400_000;
 const timestamp = z.iso.datetime({ offset: true });
@@ -12,10 +13,12 @@ const filters = z.array(z.strictObject({ saasAttrName: z.string().min(1),
   saasAttrValue: z.string() }));
 const continuation = z.strictObject({ version: z.literal(1), binding: z.string(), start: timestamp, end: timestamp,
   scroll: z.string().optional(), offset: z.number().int().nonnegative(), replayRisk: z.literal(true).optional() });
+// The guide's prose/table (pp.11,14) says security-result array; its JSON examples use an object.
+const securityResults = z.object({ combinedVerdict: z.unknown().optional() }).passthrough();
 // Entity schemas and SaaS-specific payloads: guide pages 11-15 and 21-24.
 const entity = z.object({ entityInfo: z.object({ entityId: z.string().min(1), entityActionState: z.string().optional() }).passthrough(),
   entityPayload: z.object({ subject: z.string().optional() }).passthrough(),
-  entitySecurityResults: z.object({ combinedVerdict: z.unknown().optional() }).passthrough().optional(),
+  entitySecurityResults: z.union([securityResults, z.array(z.object({}).passthrough())]).optional(),
 }).passthrough();
 // Event and task fields: guide pages 31-32, 35-36 and 40-41.
 const event = z.object({ eventId: z.string().min(1), type: z.string(), state: z.string(), severity: z.string() }).passthrough();
@@ -82,12 +85,17 @@ export async function readCommand(name: "email search" | "email show" | "event l
   if (name.endsWith(" show")) {
     const kind = name.split(" ")[0]!;
     const page = await api.read({ path: name === "task show" ? `/task/${id!}` : isEvent ? `/event/${id!}` : `/search/entity/${id!}` });
+    const response = { responseData: page.dataIsArray ? page.records : page.records[0] };
+    const recordPath = page.dataIsArray ? ["responseData", 0] : ["responseData"];
     if (page.records.length === 0) throw new AxiError(`${kind} was not found`, "NOT_FOUND", []);
     const parsed = (name === "task show" ? task : isEvent ? event : entity).safeParse(page.records[0]);
-    if (page.records.length !== 1 || !parsed.success) throw new AxiError(`Invalid ${kind} detail response`, "RESPONSE_INVALID", []);
+    if (page.records.length !== 1) throw responseInvalid(`Invalid ${kind} detail response`, response, [["responseData"]]);
+    if (!parsed.success) throw responseInvalid(`Invalid ${kind} detail response`, response,
+      parsed.error.issues.map((issue) => [...recordPath, ...issue.path]));
     const record = page.records[0] as Record<string, unknown>;
     const returnedId = name === "task show" ? String(record.id) : isEvent ? record.eventId : (record.entityInfo as { entityId?: string } | undefined)?.entityId;
-    if (returnedId !== id) throw new AxiError(`Invalid ${kind} detail response`, "RESPONSE_INVALID", []);
+    if (returnedId !== id) throw responseInvalid(`Invalid ${kind} detail response`, response,
+      [[...recordPath, ...(name === "task show" ? ["id"] : isEvent ? ["eventId"] : ["entityInfo", "entityId"])]]);
     return { [kind]: parsed.data };
   }
   const results: Record<string, unknown>[] = [];
@@ -107,16 +115,19 @@ export async function readCommand(name: "email search" | "email show" | "event l
       throw error;
     }
     const parsed = z.array(isEvent ? event : entity).safeParse(page.records);
-    if (!parsed.success || offset > page.records.length) throw new AxiError("Invalid search response", "RESPONSE_INVALID", []);
+    const response = { responseData: page.dataIsArray ? page.records : page.records[0] };
+    if (!parsed.success) throw responseInvalid("Invalid search response", response,
+      parsed.error.issues.map((issue) => ["responseData", ...(page.dataIsArray ? issue.path : issue.path.slice(1))]));
+    if (offset > page.records.length) throw responseInvalid("Invalid search response", response, [["responseData"]]);
     // Never wrap an echoed credential in a reversible continuation cursor.
-    if (page.scrollId && store.redactor.text(page.scrollId) !== page.scrollId) throw new AxiError("Unsafe API scrollId", "RESPONSE_INVALID", []);
+    if (page.scrollId && store.redactor.text(page.scrollId) !== page.scrollId) throw responseInvalid("Unsafe API scrollId", { responseEnvelope: { scrollId: page.scrollId } }, [["responseEnvelope", "scrollId"]]);
     total = page.total ?? total;
     const rows = parsed.data.slice(offset, offset + limit - results.length);
     results.push(...rows.map((record) => {
       if (isEvent) { const value = event.parse(record); return { id: value.eventId, type: value.type, state: value.state, severity: value.severity }; }
       const value = entity.parse(record);
       return { id: value.entityInfo.entityId, subject: value.entityPayload.subject ?? "",
-        state: value.entityInfo.entityActionState ?? "", verdict: value.entitySecurityResults?.combinedVerdict ?? null };
+        state: value.entityInfo.entityActionState ?? "", verdict: Array.isArray(value.entitySecurityResults) ? null : value.entitySecurityResults?.combinedVerdict ?? null };
     }));
     offset += rows.length;
     if (offset < page.records.length) { replayRisk = true; break; }
