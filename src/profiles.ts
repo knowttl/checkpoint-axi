@@ -9,6 +9,7 @@ import { SecretRedactor } from "./redact.js";
 const profileName = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/);
 const region = z.enum(Object.keys(REGIONS) as [keyof typeof REGIONS, ...(keyof typeof REGIONS)[]]);
 const nonempty = z.string().trim().min(1);
+const saasName = nonempty.refine((value) => !value.includes("/"));
 export type CredentialContext = PrivateFileOptions & { env?: NodeJS.ProcessEnv; home?: string };
 
 function schema(platform: NodeJS.Platform) {
@@ -20,7 +21,7 @@ function schema(platform: NodeJS.Platform) {
     region,
     clientId: nonempty,
     clientSecret: secretRef.default({ env: "CHECKPOINT_AXI_CLIENT_SECRET" }),
-    saas: nonempty.default("office365_emails"),
+    saas: saasName.default("office365_emails"),
     scope: nonempty.optional(),
     downloads: z.strictObject({ allow: z.boolean() }).default({ allow: false }),
     writes: z.strictObject({ allowWrites: z.boolean(), operations: z.array(z.string().regex(/^[a-z][A-Za-z0-9_.-]*$/)) })
@@ -71,7 +72,7 @@ export function credentialStore(options: CredentialContext = {}, redactor = new 
       }
     }
     const parsed = schema(platform).safeParse(raw);
-    if (!parsed.success) return invalid("Invalid configuration: check profile names, region, defaultProfile, unknown fields and clientSecret SecretRef");
+    if (!parsed.success) return invalid("Invalid configuration: check profile names, region, defaultProfile, unknown fields, clientSecret SecretRef and saas (use a SaaS application name, not a URL)");
     return { path, config: parsed.data };
   }
   function select(config: ReturnType<typeof load>["config"], flag?: string): SelectedProfile {
@@ -79,8 +80,11 @@ export function credentialStore(options: CredentialContext = {}, redactor = new 
     if (selected !== undefined && !profileName.safeParse(selected).success) invalid("Invalid selected profile name");
     const envFields = ["REGION", "CLIENT_ID", "SAAS", "SCOPE"];
     if (selected === undefined && envFields.some((field) => env[`CHECKPOINT_AXI_${field}`] !== undefined)) {
+      if (env.CHECKPOINT_AXI_SAAS !== undefined && !saasName.safeParse(env.CHECKPOINT_AXI_SAAS).success) {
+        return invalid("saas must be a SaaS application name, not a URL");
+      }
       if (!region.safeParse(env.CHECKPOINT_AXI_REGION).success || !env.CHECKPOINT_AXI_CLIENT_ID?.trim() || !env.CHECKPOINT_AXI_CLIENT_SECRET?.trim()
-        || (env.CHECKPOINT_AXI_SAAS !== undefined && !env.CHECKPOINT_AXI_SAAS.trim()) || (env.CHECKPOINT_AXI_SCOPE !== undefined && !env.CHECKPOINT_AXI_SCOPE.trim())) {
+        || (env.CHECKPOINT_AXI_SCOPE !== undefined && !env.CHECKPOINT_AXI_SCOPE.trim())) {
         return invalid("Incomplete or invalid env profile; set REGION, CLIENT_ID and CLIENT_SECRET together");
       }
       return { region: env.CHECKPOINT_AXI_REGION as Profile["region"], clientId: env.CHECKPOINT_AXI_CLIENT_ID.trim(),

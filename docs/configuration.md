@@ -35,8 +35,6 @@ Omitting `clientSecret` defaults its reference to `CHECKPOINT_AXI_CLIENT_SECRET`
 It confirms local readiness, not API authentication.
 `profile list` and home never resolve secret files.
 Supported regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; there is no origin override.
-Optional `saas` defaults to `office365_emails`; `doctor`, `email search` and `event list` accept `--saas <name>` to override it for that call.
-Optional `scope` supplies the required email download `scopes` header and the default optional attachment `scope` query.
 The host-facing [credential schema](../axi-credential.schema.json) describes one strict profile.
 
 Config precedence is `--config`, then `CHECKPOINT_AXI_CONFIG`, then the platform path.
@@ -51,6 +49,24 @@ An empty override uses that default.
 POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
 Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
 On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email, event, task and exception API commands also verify a protected DACL for the current user, SYSTEM and Administrators.
+
+## SaaS and scope
+
+`saas` is one non-blank SaaS application name, not a gateway, host or authentication URL.
+Obtain the exact API application name for your tenant from its administrator or Check Point support.
+If omitted, it defaults to `office365_emails`, selecting Microsoft 365 email; choose the appropriate name when targeting another application.
+`office365_emails` is valid; `https://example.test/auth` and `example.test/auth` are invalid because slash (`/`) is not allowed.
+A profile takes one value, not a comma-separated list.
+`doctor` and `email search` accept `--saas <name>` for a single-call override; `event list --saas <names>` accepts a comma-separated list.
+
+`scope` is a download scope value supplied by your tenant administrator or Check Point support for the intended download.
+Use printable ASCII with no spaces (characters `!` through `~`); comma-separated values are sent verbatim.
+For example, `synthetic:scope` has a valid form, while `synthetic scope` does not; the example is not a tenant-authorized value.
+There is no default: omitted means unset.
+Email download requires profile `scope` and sends it as the `scopes` header; without it, the command fails before authentication.
+Attachment download uses profile `scope` only as the default `scope` query; `--scope` overrides it, and no query is sent if both are absent.
+Tenant scope authorization and the relationship between the header and query remain unverified; do not guess a value.
+See [download requirements](downloads.md) for the separate download opt-in and output checks.
 
 ## Write and download permissions
 
