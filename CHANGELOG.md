@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/knowttl/checkpoint-axi/compare/v0.1.1...v0.1.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* clarify profile options and reject URL-shaped SaaS values ([#20](https://github.com/knowttl/checkpoint-axi/issues/20)) ([45ab810](https://github.com/knowttl/checkpoint-axi/commit/45ab81021afff70e8e2280f660b77d75cfb6370f))
+* diagnose invalid email responses and document search filters ([#22](https://github.com/knowttl/checkpoint-axi/issues/22)) ([2a40844](https://github.com/knowttl/checkpoint-axi/commit/2a40844e54411aa56fd42b323c523c4dd7e211fb))
+
 ## [0.1.1](https://github.com/knowttl/checkpoint-axi/compare/v0.1.0...v0.1.1) (2026-10-28)
 
 
