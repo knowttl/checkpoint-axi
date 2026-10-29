@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/knowttl/checkpoint-axi/compare/v0.1.2...v0.1.3) (2026-10-29)
+
+
+### Features
+
+* add bounded read-only detail expansion for email and event lists ([#23](https://github.com/knowttl/checkpoint-axi/issues/23)) ([9a20d91](https://github.com/knowttl/checkpoint-axi/commit/9a20d91333fdfdd1f6348f430fa8ef2e10a58d34))
+* add bounded read-only task status waiting ([#25](https://github.com/knowttl/checkpoint-axi/issues/25)) ([cf3e9b9](https://github.com/knowttl/checkpoint-axi/commit/cf3e9b9e8b0717c2530afc74c5dbb6350a1d5da6)), closes [#17](https://github.com/knowttl/checkpoint-axi/issues/17)
+
 ## [0.1.2](https://github.com/knowttl/checkpoint-axi/compare/v0.1.1...v0.1.2) (2026-10-29)
 
 
