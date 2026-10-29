@@ -1,6 +1,6 @@
 {
   "name": "@knowttl/checkpoint-axi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Inspect Check Point Email Security through compact, guarded AXI commands",
   "license": "MIT",
   "type": "module",

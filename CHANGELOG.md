@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/knowttl/checkpoint-axi/compare/v0.1.0...v0.1.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* add compact investigation guidance for agents ([#18](https://github.com/knowttl/checkpoint-axi/issues/18)) ([2dffd8f](https://github.com/knowttl/checkpoint-axi/commit/2dffd8faf718528cbe801ff64173bdcc7d51b254))
+* align README and release metadata with shipped behavior ([#13](https://github.com/knowttl/checkpoint-axi/issues/13)) ([164863e](https://github.com/knowttl/checkpoint-axi/commit/164863ef4507a283cfe8a11bb22c355e0bce0587))
+
 ## 0.1.0 (2026-10-27)
 
 
