@@ -63,10 +63,8 @@ A profile takes one value, not a comma-separated list.
 Use printable ASCII with no spaces (characters `!` through `~`); comma-separated values are sent verbatim.
 For example, `synthetic:scope` has a valid form, while `synthetic scope` does not; the example is not a tenant-authorized value.
 There is no default: omitted means unset.
-Email download requires profile `scope` and sends it as the `scopes` header; without it, the command fails before authentication.
-Attachment download uses profile `scope` only as the default `scope` query; `--scope` overrides it, and no query is sent if both are absent.
-Tenant scope authorization and the relationship between the header and query remain unverified; do not guess a value.
-See [download requirements](downloads.md) for the separate download opt-in and output checks.
+Do not guess a tenant-authorized value.
+See [download requirements](downloads.md) for how email and attachment commands use scope, the remaining verification limits, and the separate download opt-in and output checks.
 
 ## Write and download permissions
 

@@ -114,8 +114,8 @@ File metadata never mixes with environment-profile fields; SecretRefs may explic
 | `CHECKPOINT_AXI_REGION` | Environment-profile region | Required with client ID/secret |
 | `CHECKPOINT_AXI_CLIENT_ID` | Environment-profile client ID | Required with region/secret |
 | `CHECKPOINT_AXI_CLIENT_SECRET` | Environment secret source | Default SecretRef; required for env profile |
-| `CHECKPOINT_AXI_SAAS` | One non-blank SaaS application name from your tenant administrator or Check Point support, not a gateway, host or authentication URL; `/` is rejected. Profiles take one value; `event list --saas` accepts a comma-separated list. | `office365_emails` (Microsoft 365 email) when unset; choose the appropriate name for another application |
-| `CHECKPOINT_AXI_SCOPE` | Download scope from your tenant administrator or Check Point support: printable ASCII with no spaces (`!` through `~`), sent verbatim. Email download requires profile scope as its `scopes` header; attachment download uses it only as the default `scope` query, overridden by `--scope`. Authorization remains unverified. Environment profiles cannot enable downloads. | No default; unset prevents email download and omits the attachment query unless `--scope` is supplied |
+| `CHECKPOINT_AXI_SAAS` | Environment-profile SaaS application name, not a URL; see [SaaS and scope](docs/configuration.md#saas-and-scope) for selection and format | `office365_emails` (Microsoft 365 email) |
+| `CHECKPOINT_AXI_SCOPE` | Environment-profile download scope; see [SaaS and scope](docs/configuration.md#saas-and-scope) for values and [download requirements](docs/downloads.md) for usage and permission limits | Unset |
 | `CHECKPOINT_AXI_READ_ONLY` | Force read-only: `1`/`true`; `0`/`false` releases override | Unset |
 | `CHECKPOINT_AXI_WRITE_LOG` | Write journal path | State directory's `writes.log`; blank uses default |
 | `XDG_CONFIG_HOME` | Absolute config base on Linux/macOS | `~/.config` |
