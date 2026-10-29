@@ -10,7 +10,7 @@ const taskPage = JSON.parse(readFileSync(new URL("./fixtures/task-page.json", im
 const window = ["--start-date", "2026-01-01T00:00:00Z", "--end-date", "2026-01-02T00:00:00Z"];
 const cleanups: (() => unknown | Promise<unknown>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); process.exitCode = 0; });
-async function setup(handler: Parameters<typeof fakeGateway>[0], timing: { now?: () => number } = {}) {
+async function setup(handler: Parameters<typeof fakeGateway>[0], timing: { now?: () => number; wait?: (milliseconds: number) => Promise<unknown> } = {}) {
   const local = localFixture();
   cleanups.push(local.cleanup);
   const server = await fakeGateway((request, response, body) => {
@@ -156,6 +156,95 @@ test.each(["init", "inprogress", "completed", "failed", "stopped", "paused"])("t
   expect((await cli.run(["task", "show", "123"])).data.task.status).toBe(status);
 });
 
+test.each(["completed", "failed", "stopped"])("task wait reaches terminal %s using only status GETs", async (status) => {
+  let time = 0;
+  const reads: { method: string | undefined; path: string | undefined; time: number }[] = [];
+  const states = ["init", "paused", "inprogress", status];
+  const cli = await setup((request, response) => {
+    reads.push({ method: request.method, path: request.url, time });
+    const state = states[reads.length - 1];
+    response.end(JSON.stringify({ ...taskPage, responseData: { ...taskPage.responseData, status: state,
+      progress: reads.length === 4 ? 1 : 0, actions: [{ ...taskPage.responseData.actions[0], action_status: state }] } }));
+  }, { now: () => time, wait: async (milliseconds) => { time += milliseconds; } });
+  cli.local.env.CHECKPOINT_AXI_READ_ONLY = "1";
+  const result = await cli.run(["task", "show", "123", "--wait", "--timeout", "30"]);
+  expect(result.code, result.output).toBe(0);
+  expect(result.data).toMatchObject({ task: { status, progress: 1 }, wait: { terminal: true, polls: 4, reason: "terminal" } });
+  expect(reads).toEqual([0, 2_000, 4_000, 6_000].map((time) => ({ method: "GET", path: "/app/hec-api/v1.0/task/123", time })));
+});
+
+test("task wait timeout returns the last snapshot and read-only recovery", async () => {
+  let time = 0;
+  let reads = 0;
+  const cli = await setup((_request, response) => {
+    reads++;
+    response.end(JSON.stringify({ ...taskPage, responseData: { ...taskPage.responseData, status: "inprogress", progress: reads, total: 10 } }));
+  }, { now: () => time, wait: async (milliseconds) => { time += milliseconds; } });
+  const result = await cli.run(["task", "show", "123", "--wait", "--timeout", "3", "--fields", "task,wait,help"]);
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ task: { status: "inprogress", progress: 2 }, wait: { terminal: false, polls: 2, reason: "timeout" } });
+  expect(reads).toBe(2);
+  expect(time).toBe(3_000);
+  expect(result.data.help[0]).toContain("checkpoint-axi task show 123");
+  expect(result.data.help[0]).toContain("never resubmit");
+});
+
+test("task wait returns an already terminal snapshot without delaying or polling again", async () => {
+  let time = 0;
+  let reads = 0;
+  const cli = await setup((_request, response) => { reads++; response.end(JSON.stringify(taskPage)); },
+    { now: () => time, wait: async (milliseconds) => { time += milliseconds; } });
+  const result = await cli.run(["task", "show", "123", "--wait", "--timeout", "1"]);
+  expect(result.data).toMatchObject({ task: { status: "completed" }, wait: { terminal: true, polls: 1, reason: "terminal" } });
+  expect(reads).toBe(1);
+  expect(time).toBe(0);
+});
+
+test("task wait request cap includes authentication and read retries", async () => {
+  let time = 0;
+  let reads = 0;
+  const cli = await setup((_request, response) => {
+    reads++;
+    if (reads === 2) {
+      response.writeHead(429, { "retry-after": "1" });
+      return response.end();
+    }
+    response.end(JSON.stringify({ ...taskPage, responseData: { ...taskPage.responseData, status: "paused" } }));
+  }, { now: () => time, wait: async (milliseconds) => { time += milliseconds; } });
+  const result = await cli.run(["task", "show", "123", "--wait", "--timeout", "60", "--wait-requests", "4"]);
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ task: { status: "paused" }, wait: { terminal: false, polls: 2, reason: "budget" } });
+  expect(reads).toBe(3);
+});
+
+test("task wait applies its timeout to Retry-After without discarding the last snapshot", async () => {
+  let time = 0;
+  let reads = 0;
+  const cli = await setup((_request, response) => {
+    if (++reads === 2) {
+      response.writeHead(429, { "retry-after": "30" });
+      return response.end();
+    }
+    response.end(JSON.stringify({ ...taskPage, responseData: { ...taskPage.responseData, status: "inprogress" } }));
+  }, { now: () => time, wait: async (milliseconds) => { time += milliseconds; } });
+  const result = await cli.run(["task", "show", "123", "--wait", "--timeout", "5"]);
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ task: { status: "inprogress" }, wait: { terminal: false, polls: 1, reason: "timeout" } });
+  expect(reads).toBe(2);
+});
+
+test("task wait accepts the maximum poll interval without reading at the deadline", async () => {
+  let time = 0;
+  const readTimes: number[] = [];
+  const cli = await setup((_request, response) => {
+    readTimes.push(time);
+    response.end(JSON.stringify({ ...taskPage, responseData: { ...taskPage.responseData, status: "init" } }));
+  }, { now: () => time, wait: async (milliseconds) => { time += milliseconds; } });
+  const result = await cli.run(["task", "show", "123", "--wait", "--timeout", "20", "--poll-interval", "10"]);
+  expect(result.data.wait).toEqual({ terminal: false, polls: 2, reason: "timeout" });
+  expect(readTimes).toEqual([0, 10_000]);
+});
+
 test.each([
   ["event", "list", "--limit", "0"], ["event", "list", "--all", "--limit", "1"],
   ["event", "list", "--event-types", "phishing,"], ["event", "list", "--saas", " "],
@@ -163,6 +252,11 @@ test.each([
   ["event", "list", "--start-date", "2026-01-01T00:00:00Z", "--end-date", "2026-02-02T00:00:00Z"],
   ["event", "show"], ["task", "show"], ["task", "show", "../escape"],
   ["event", "show", "synthetic-event-1", "--execute"], ["task", "show", "123", "--saas", "google_mail"],
+  ["task", "show", "123", "--wait"], ["task", "show", "123", "--timeout", "3"],
+  ["task", "show", "123", "--poll-interval", "2"], ["task", "show", "123", "--wait-requests", "2"],
+  ...["0", "61", "1.5"].map((value) => ["task", "show", "123", "--wait", "--timeout", value]),
+  ...["0", "11", "1.5"].map((value) => ["task", "show", "123", "--wait", "--timeout", "30", "--poll-interval", value]),
+  ...["1", "11", "2.5"].map((value) => ["task", "show", "123", "--wait", "--timeout", "30", "--wait-requests", value]),
 ])("invalid event/task input fails before config access: %j", async (...args) => {
   const local = localFixture();
   cleanups.push(local.cleanup);

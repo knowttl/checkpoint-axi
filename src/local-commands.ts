@@ -36,7 +36,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--expand", "--items", "--specific", "--original", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--full", "--all", "--expand", "--wait", "--items", "--specific", "--original", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -50,6 +50,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : ["bin", "description", "status", "profiles", "count", "help"];
   const isWrite = name === "email quarantine" || name === "email restore" || name === "event action" || isExceptionWrite;
+  if (name === "task show") available.push("wait", "help");
   if (isWrite) available.splice(0, available.length, "outcome", "preview", "auditId", "tasks", "response", "responseSchema", "help");
   if (isDownload) available.splice(0, available.length, "path", "size", "sha256");
   const fields = flags.get("--fields")?.split(",") ?? available;

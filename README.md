@@ -76,7 +76,15 @@ See [bounded detail expansion](docs/reads.md#bounded-detail-expansion) for limit
 | exception | Inspect eight kinds; preview or request supported rule changes | Read / gated write | [Guide](docs/writes.md) |
 | home | Show local profile context without resolving secrets | Local read | [Guide](docs/configuration.md) |
 | profile | List named file profiles | Local read | [Guide](docs/configuration.md) |
-| task | Inspect asynchronous action status without polling | Read | [Guide](docs/reads.md#event-and-task-reads) |
+| task | Inspect asynchronous action status once or with bounded read-only waiting | Read | [Guide](docs/reads.md#event-and-task-reads) |
+
+Task show reads once by default; use task show <id> --wait --timeout 30 for bounded read-only polling.
+--timeout is required with --wait (integer seconds, range 1-60); --poll-interval defaults to 2 seconds (range 1-10), and --wait-requests defaults to 10 total HTTP requests (range 2-10), including auth and retries.
+Wait stops on completed, failed or stopped; init, inprogress and paused remain non-terminal.
+The task snapshot contains the final status; wait reports terminal, polls (validated status snapshots) and reason (terminal, timeout or budget).
+A non-terminal stop exits 0 with the last snapshot and a read-only next-step hint; inspect wait even on exit 0 and include task,wait,help with --fields.
+Timeout covers auth, requests, retries and delays within the shared 8 MiB response cap; failures before any snapshot remain errors.
+Waiting never resubmits an action or changes remote state; a failed or stopped task is terminal, not successful execution.
 
 Email search --filter accepts a JSON array of {saasAttrName, saasAttrOp, saasAttrValue}.
 saasAttrName is a field path, not a closed enum (guide pages 19-20).

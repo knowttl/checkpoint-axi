@@ -54,7 +54,21 @@ These diagnostics support owner commissioning; the actual failing fields behind 
 `checkpoint-axi event list` returns compact ID, type, state and severity rows (guide pages 37-42).
 `checkpoint-axi event show <id>` preserves event details, action history and available actions (guide pages 34-37).
 `checkpoint-axi task show <id>` returns task status, progress and per-action details for asynchronous actions (guide pages 30-33).
-Task states are `init`, `inprogress`, `completed`, `failed`, `stopped` and `paused`; task show performs one read without polling.
+Task states are `init`, `inprogress`, `completed`, `failed`, `stopped` and `paused`; task show performs one read by default.
+Use `checkpoint-axi task show <id> --wait --timeout 30` to poll an already submitted task without resubmitting its action.
+`--wait` requires an explicit `--timeout` in integer seconds, from 1 to 60.
+`--poll-interval` defaults to 2 seconds, from 1 to 10; `--wait-requests` defaults to 10 total HTTP requests, from 2 to 10, including authentication, re-exchange and retries.
+These limits require `--wait` and invalid bounds fail before configuration or network access.
+The timeout includes authentication, requests, retries and delays, and the existing 8 MiB response cap remains shared across polls.
+The first read starts immediately; subsequent reads wait the configured interval after the preceding read, without starting another read at or after the deadline.
+`completed`, `failed` and `stopped` are terminal; `init`, `inprogress` and `paused` remain non-terminal.
+The final `task` snapshot retains status, progress and per-action details; the `wait` object reports `terminal`, `polls` (validated status snapshots, excluding authentication and retries), and `reason`: `terminal`, `timeout` or `budget`.
+Request or response-byte exhaustion reports `budget`; an exhausted deadline or a retry delay that cannot fit reports `timeout`.
+A non-terminal stop exits 0, preserves the last snapshot and includes a `help` hint for another status read.
+Inspect `wait` even on exit 0; terminal failure or stopping does not mean the submitted action succeeded.
+Failures before any snapshot and non-budget read failures remain structured errors rather than reporting stale data as current.
+Use `--fields task,wait,help` to retain wait metadata and recovery guidance when projecting output.
+Waiting only repeats the existing task status GET; it never invokes an available action, downloads a file or resubmits the original mutation.
 Event list accepts comma-separated `--event-types`, `--event-states`, `--severities`, `--event-ids` and `--saas`, plus `--confidence-indicator` and `--description` text selectors.
 SaaS defaults to the selected profile's value or `office365_emails`; other event selectors default to unfiltered.
 Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](reads.md#email-reads).
