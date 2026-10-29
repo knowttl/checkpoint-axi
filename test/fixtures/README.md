@@ -5,6 +5,9 @@ Its region is from the public guide, page 8; its client ID and secret environmen
 `search-page.json` is a synthetic empty response derived from the entity search envelope/data schema on guide pages 20-22, with a reserved synthetic request UUID.
 `email-page.json` derives entity detail, payload, verdict and action fields from the schemas on guide pages 11-15 and 21-24.
 Its email IDs, reserved example addresses, timestamps and content are invented; pagination tests vary only synthetic records and envelope metadata.
+`email-page.json` supplies the object form of `entitySecurityResults` from the guide's JSON examples.
+`email-security-array-page.json` supplies the array-of-scan-objects form described in the prose/table on pages 11 and 14, with scan fields from page 14.
+Neither fixture purports to reproduce the unobserved live response behind TD-049 or establishes a spam-specific contract.
 Transport tests derive object response data from the alternative schema shape on pages 35-37.
 `event-page.json` derives event details, action history and available actions from the schemas on guide pages 35-36 and 40-41.
 `task-page.json` derives task status, progress and action details from the schema on guide pages 31-32.

@@ -36,6 +36,12 @@ checkpoint-axi email show synthetic-email-1 --fields email
 ```
 
 Search flags: --saas (default profile SaaS or office365_emails), --saas-entity, and --filter (JSON array of {saasAttrName, saasAttrOp, saasAttrValue}).
+saasAttrName is a field path, not a closed enum (guide pages 19-20).
+Documented examples: entityPayload.subject, entityPayload.fromEmail, entityPayload.attachmentCount.
+Other documented email payload paths (pages 15-16, 24-25): entityPayload.internetMessageId, entityPayload.received, entityPayload.size, entityPayload.emailLinks, entityPayload.attachments, entityPayload.mode, entityPayload.recipients, entityPayload.fromDomain, entityPayload.fromUser, entityPayload.fromName, entityPayload.to, entityPayload.toUser, entityPayload.cc, entityPayload.ccUser, entityPayload.bcc, entityPayload.bccUser, entityPayload.replyToEmail, entityPayload.replyToNickname, entityPayload.isRead, entityPayload.isDeleted, entityPayload.isIncoming, entityPayload.isInternal, entityPayload.isOutgoing, entityPayload.isQuarantined, entityPayload.isQuarantineNotification, entityPayload.isRestored, entityPayload.isRestoreRequested, entityPayload.isRestoreDeclined, entityPayload.saasSpamVerdict, entityPayload.SpfResult.
+saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan.
+The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan.
+saasAttrValue is a string.
 Event selectors include --event-types, --event-states, --severities, --event-ids (comma-separated), --confidence-indicator and --description; --saas accepts comma-separated SaaS values here.
 Event detail includes available actions; task detail reads status and per-action results once, without waiting or polling:
 

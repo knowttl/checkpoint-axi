@@ -6,6 +6,7 @@ import { REGIONS } from "./regions.js";
 import type { SelectedProfile } from "./profiles.js";
 import type { SecretRedactor } from "./redact.js";
 import { consumeWriteAuthorization, type WriteAuthorization } from "./writes.js";
+import { responseInvalid } from "./response-invalid.js";
 
 export const READ_LIMITS = { requests: 10, rows: 1_000, milliseconds: 60_000, bytes: 8 * 1024 * 1024 } as const;
 export const DOWNLOAD_LIMIT = 50 * 1024 * 1024;
@@ -19,7 +20,7 @@ export type ReadRequest =
   | { path: "/event/query"; body: { startDate?: string; endDate?: string; saas?: string[]; eventTypes?: string[]; eventStates?: string[]; severities?: string[]; eventIds?: string[]; confidenceIndicator?: string; description?: string; scrollId?: string } }
   | { path: `/event/${string}` | `/task/${string}`; body?: never }
   | { path: ExceptionPath; body?: never };
-export type Page = { records: unknown[]; scrollId?: string; total?: number };
+export type Page = { records: unknown[]; dataIsArray: boolean; scrollId?: string; total?: number };
 type Dependencies = { agent?: Agent; now?: () => number; wait?: (milliseconds: number) => Promise<unknown> };
 const failure = (code: string, message: string) => new AxiError(message, code, ["Check the selected region and credentials; run checkpoint-axi doctor"]);
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -28,22 +29,23 @@ const object = (value: unknown): value is Record<string, unknown> => value !== n
 export function decodePage(value: unknown, unverified = false): Page {
   // These exception families publish no response schema (guide pages 83-123).
   if (unverified && (!object(value) || !Object.hasOwn(value, "responseEnvelope"))) {
-    return { records: Array.isArray(value) ? value : [value] };
+    return { records: Array.isArray(value) ? value : [value], dataIsArray: Array.isArray(value) };
   }
-  if (!object(value) || !object(value.responseEnvelope)) throw failure("RESPONSE_INVALID", "Missing API response envelope");
+  if (!object(value)) throw responseInvalid("Missing API response envelope", value, [[]]);
+  if (!object(value.responseEnvelope)) throw responseInvalid("Missing API response envelope", value, [["responseEnvelope"]]);
   const envelope = value.responseEnvelope;
   if (envelope.responseCode !== 0 && envelope.responseCode !== "0" && envelope.responseCode !== 200 && envelope.responseCode !== "200") {
     throw failure("API_ERROR", "API response envelope did not report success");
   }
   const data = value.responseData;
-  if ((!unverified && !Array.isArray(data) && !object(data)) || data === undefined) throw failure("RESPONSE_INVALID", "Expected responseData");
+  if ((!unverified && !Array.isArray(data) && !object(data)) || data === undefined) throw responseInvalid("Expected responseData", value, [["responseData"]]);
   if (envelope.scrollId !== undefined && envelope.scrollId !== null && typeof envelope.scrollId !== "string") {
-    throw failure("RESPONSE_INVALID", "Invalid API scrollId");
+    throw responseInvalid("Invalid API scrollId", value, [["responseEnvelope", "scrollId"]]);
   }
   if (envelope.totalRecordsNumber !== undefined && (!Number.isSafeInteger(envelope.totalRecordsNumber) || Number(envelope.totalRecordsNumber) < 0)) {
-    throw failure("RESPONSE_INVALID", "Invalid API totalRecordsNumber");
+    throw responseInvalid("Invalid API totalRecordsNumber", value, [["responseEnvelope", "totalRecordsNumber"]]);
   }
-  return { records: Array.isArray(data) ? data : [data], scrollId: typeof envelope.scrollId === "string" && envelope.scrollId ? envelope.scrollId : undefined,
+  return { records: Array.isArray(data) ? data : [data], dataIsArray: Array.isArray(data), scrollId: typeof envelope.scrollId === "string" && envelope.scrollId ? envelope.scrollId : undefined,
     total: envelope.totalRecordsNumber as number | undefined };
 }
 
@@ -120,7 +122,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
           const json = Buffer.concat(chunks).toString("utf8");
           if (allowEmpty && status === 204 && !json) return resolve({ status, value: null });
           try { resolve({ status, value: JSON.parse(json) as unknown }); }
-          catch { reject(failure("RESPONSE_INVALID", "API returned invalid JSON")); }
+          catch { reject(responseInvalid("API returned invalid JSON", json, [[]])); }
         });
       });
       const timer = setTimeout(() => req.destroy(failure("TIME_BUDGET", "Read time budget exhausted")), remaining);

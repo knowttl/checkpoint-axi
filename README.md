@@ -74,6 +74,14 @@ Use the [command reference](docs/commands.md) for the full catalogue.
 | home | Show local profile context without resolving secrets | Local read | [Guide](docs/configuration.md) |
 | profile | List named file profiles | Local read | [Guide](docs/configuration.md) |
 | task | Inspect asynchronous action status without polling | Read | [Guide](docs/reads.md#event-and-task-reads) |
+
+Email search --filter accepts a JSON array of {saasAttrName, saasAttrOp, saasAttrValue}.
+saasAttrName is a field path, not a closed enum (guide pages 19-20).
+Documented examples: entityPayload.subject, entityPayload.fromEmail, entityPayload.attachmentCount.
+Other documented email payload paths (pages 15-16, 24-25): entityPayload.internetMessageId, entityPayload.received, entityPayload.size, entityPayload.emailLinks, entityPayload.attachments, entityPayload.mode, entityPayload.recipients, entityPayload.fromDomain, entityPayload.fromUser, entityPayload.fromName, entityPayload.to, entityPayload.toUser, entityPayload.cc, entityPayload.ccUser, entityPayload.bcc, entityPayload.bccUser, entityPayload.replyToEmail, entityPayload.replyToNickname, entityPayload.isRead, entityPayload.isDeleted, entityPayload.isIncoming, entityPayload.isInternal, entityPayload.isOutgoing, entityPayload.isQuarantined, entityPayload.isQuarantineNotification, entityPayload.isRestored, entityPayload.isRestoreRequested, entityPayload.isRestoreDeclined, entityPayload.saasSpamVerdict, entityPayload.SpfResult.
+saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan.
+The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan.
+saasAttrValue is a string.
 <!-- command-registry:end -->
 
 The command catalogue generates this overview and the full references.

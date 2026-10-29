@@ -1,8 +1,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
+import { EMAIL_PAYLOAD_ATTRIBUTES } from "../dist/src/catalogue.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const payloadPaths = new Set(EMAIL_PAYLOAD_ATTRIBUTES.map((path) => path.toLowerCase()));
 const publicHosts = new Set([
   "github.com", "nodejs.org", "registry.npmjs.org", "json-schema.org", "toonformat.dev",
   "img.shields.io", "www.npmjs.com",
@@ -24,7 +26,8 @@ export function identifierViolations(text) {
       || /^exception\.(?:phishing-allow|phishing-block|spam-allow)\.(?:create|update|remove)$/.test(host)
       || /^exception\.anomaly\.(?:create|remove)$/.test(host)
       || /^exception\.click-time\.(?:create|update|remove|remove-items|clear)$/.test(host)
-      || ["email.quarantine", "email.restore", "event.action", "event.action.dismiss", "writes.allowwrites", "downloads.allow", "entitypayload.subject"].includes(host)) continue;
+      || payloadPaths.has(host)
+      || ["email.quarantine", "email.restore", "event.action", "event.action.dismiss", "writes.allowwrites", "downloads.allow"].includes(host)) continue;
     if (!publicHosts.has(host) && !/(^|\.)(example\.(com|net|org)|test|invalid|example)$/.test(host)) violations.push("unapproved domain or internal host");
   }
   for (const [address] of text.matchAll(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g)) {

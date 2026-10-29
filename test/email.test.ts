@@ -6,6 +6,7 @@ import { fakeGateway } from "./support/fake-gateway.js";
 import { localFixture } from "./support/local-cli.js";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/email-page.json", import.meta.url), "utf8"));
+const arrayFixture = JSON.parse(readFileSync(new URL("./fixtures/email-security-array-page.json", import.meta.url), "utf8"));
 const window = ["--start-date", "2026-01-01T00:00:00Z", "--end-date", "2026-01-02T00:00:00Z"];
 const cleanups: (() => unknown | Promise<unknown>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); process.exitCode = 0; });
@@ -43,6 +44,36 @@ test("search defaults to 50 compact rows in a 24-hour window", async () => {
   expect(result.data.emails[0]).toEqual({ id: "synthetic-email-0", subject: "Synthetic message", state: "", verdict: { ap: "phishing", av: "clean" } });
   expect(body.requestData.entityFilter.saas).toBe("office365_emails");
   expect(Date.parse(body.requestData.entityFilter.endDate) - Date.parse(body.requestData.entityFilter.startDate)).toBe(86_400_000);
+});
+
+test.each([
+  { shape: "object", page: fixture, id: "synthetic-email-1", verdict: { ap: "phishing", av: "clean" } },
+  { shape: "array", page: arrayFixture, id: "synthetic-email-array", verdict: null },
+])("unfiltered search and detail accept documented $shape security results", async ({ page, id, verdict }) => {
+  const cli = await setup((_request, response) => response.end(JSON.stringify(page)));
+  const search = await cli.run(["email", "search", ...window, "--all", "--saas", "office365_emails"]);
+  expect(search.code).toBe(0);
+  expect(search.data).toMatchObject({ complete: true, count: 1, emails: [{ id, verdict }] });
+  const detail = await cli.run(["email", "show", id]);
+  expect(detail.code).toBe(0);
+  expect(detail.data.email.entitySecurityResults).toEqual(page.responseData[0].entitySecurityResults);
+});
+
+test.each([
+  { command: "search", array: true, prefix: "$.responseData[0]" },
+  { command: "show", array: true, prefix: "$.responseData[0]" },
+  { command: "show", array: false, prefix: "$.responseData" },
+])("$command names invalid field paths and types without response values (array: $array)", async ({ command, array, prefix }) => {
+  const record = structuredClone(fixture.responseData[0]);
+  record.entityInfo.entityActionState = null;
+  record.entityPayload.subject = { "sender@example.test": "private-response-sentinel" };
+  const cli = await setup((_request, response) => response.end(JSON.stringify({ ...fixture, responseData: array ? [record] : record })));
+  const result = await cli.run(["email", command, ...(command === "show" ? ["synthetic-email-1"] : [])]);
+  expect(result.code).toBe(1);
+  expect(result.data.error.code).toBe("RESPONSE_INVALID");
+  expect(result.data.error.message).toContain(`${prefix}.entityInfo.entityActionState: null`);
+  expect(result.data.error.message).toContain(`${prefix}.entityPayload.subject: object`);
+  expect(result.output).not.toMatch(/sender@example\.test|private-response-sentinel/);
 });
 
 test("continuation replays a stable page without claiming completeness", async () => {
