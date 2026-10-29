@@ -60,10 +60,7 @@ Start investigations with the compact [agent guide](docs/agent-guide.md), linked
 Use the [command reference](docs/commands.md) for the full catalogue.
 
 Email search and event list support opt-in read-only detail expansion with `--expand`.
-Use `--expand-limit` for 1-8 detail attempts (default 5) and `--expand-requests` for 2-10 total HTTP requests (default 10), including auth, listing and retries.
-Successful rows include `detail`; `expansion` reports the expanded count and every unexpanded ID with its cap, budget or per-item error reason while retaining partial results.
-Listing runs first and shares the existing 60-second and 8 MiB budgets with detail reads; `--all` may exhaust the request budget before expansion starts.
-See [bounded detail expansion](docs/reads.md#bounded-detail-expansion) for examples and completion semantics.
+See [bounded detail expansion](docs/reads.md#bounded-detail-expansion) for limits, shared budgets, partial results and examples.
 
 ## What it covers
 
