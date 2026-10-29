@@ -1,5 +1,6 @@
 import { AxiError } from "axi-sdk-js";
 import { createHash } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
 import type { credentialStore } from "./profiles.js";
 import { REGIONS } from "./regions.js";
@@ -33,6 +34,14 @@ export async function readCommand(name: "email search" | "email show" | "event l
   store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
   const isEvent = name.startsWith("event ");
   if (name.endsWith(" show") && (!id || !/^[A-Za-z0-9_-]+$/.test(id))) invalid(`${name} requires one ID containing letters, digits, underscores or hyphens`);
+  const waiting = flags.has("--wait");
+  if (!waiting && ["--timeout", "--poll-interval", "--wait-requests"].some((flag) => flags.has(flag))) invalid("Wait limits require --wait");
+  const timeoutText = flags.get("--timeout") ?? "";
+  const intervalText = flags.get("--poll-interval") ?? "2";
+  const waitRequestsText = flags.get("--wait-requests") ?? "10";
+  if (waiting && (!/^[1-9][0-9]*$/.test(timeoutText) || Number(timeoutText) > 60)) invalid("--wait requires --timeout in integer seconds from 1 to 60");
+  if (!/^(?:[1-9]|10)$/.test(intervalText)) invalid("--poll-interval must be integer seconds from 1 to 10");
+  if (!/^(?:[2-9]|10)$/.test(waitRequestsText)) invalid("--wait-requests must be an integer from 2 to 10");
   const limitText = flags.get("--limit") ?? "50";
   if (!/^[1-9][0-9]*$/.test(limitText) || Number(limitText) > READ_LIMITS.rows) invalid("--limit must be an integer from 1 to 1000");
   if (flags.has("--all") && flags.has("--limit")) invalid("Use either --all or --limit");
@@ -86,7 +95,12 @@ export async function readCommand(name: "email search" | "email show" | "event l
   const binding = createHash("sha256").update(JSON.stringify({ profile: profile.name, client: profile.clientId,
     origin: REGIONS[profile.region], operation: name, ...(isEvent ? { selectors } : { entityFilter, extended }) })).digest("hex");
   if (cursor && cursor.binding !== binding) invalid("Cursor does not match this profile, region or search selectors; repeat the original selectors");
-  const api = gateway(profile, store.credentials(profile, true), store.redactor, transport, false, Number(expandRequestsText));
+  const now = transport?.now ?? Date.now;
+  const wait = transport?.wait ?? delay;
+  const timeout = waiting ? Number(timeoutText) * 1_000 : READ_LIMITS.milliseconds;
+  const deadline = now() + timeout;
+  const api = gateway(profile, store.credentials(profile, true), store.redactor, transport, false,
+    Number(waiting ? waitRequestsText : expandRequestsText), timeout);
   async function detail(id: string) {
     if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new AxiError("Invalid detail ID", "RESPONSE_INVALID", []);
     const kind = name.split(" ")[0]!;
@@ -103,6 +117,28 @@ export async function readCommand(name: "email search" | "email show" | "event l
     if (returnedId !== id) throw responseInvalid(`Invalid ${kind} detail response`, response,
       [[...recordPath, ...(name === "task show" ? ["id"] : isEvent ? ["eventId"] : ["entityInfo", "entityId"])]]);
     return parsed.data;
+  }
+  if (name === "task show" && waiting) {
+    let snapshot: Awaited<ReturnType<typeof detail>> | undefined;
+    let polls = 0;
+    let reason: "terminal" | "timeout" | "budget";
+    for (;;) {
+      try {
+        snapshot = await detail(id!);
+        polls++;
+      } catch (error) {
+        if (!snapshot || !(error instanceof AxiError) || !["REQUEST_BUDGET", "TIME_BUDGET", "RESPONSE_TOO_LARGE"].includes(error.code)) throw error;
+        reason = error.code === "TIME_BUDGET" ? "timeout" : "budget";
+        break;
+      }
+      if (["completed", "failed", "stopped"].includes(snapshot.status as string)) { reason = "terminal"; break; }
+      const remaining = deadline - now();
+      if (remaining <= 0) { reason = "timeout"; break; }
+      await wait(Math.min(Number(intervalText) * 1_000, remaining));
+      if (now() >= deadline) { reason = "timeout"; break; }
+    }
+    return { task: snapshot, wait: { terminal: reason === "terminal", polls, reason },
+      ...(reason === "terminal" ? {} : { help: [`Run checkpoint-axi task show ${id}${flags.has("--config") ? " --config <absolute-path>" : ""}${flags.has("--profile") ? " --profile <name>" : ""} to read status again; the task may still run, never resubmit its action to obtain status`] }) };
   }
   if (name.endsWith(" show")) return { [name.split(" ")[0]!]: await detail(id!) };
   const results: Record<string, unknown>[] = [];

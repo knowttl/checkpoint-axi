@@ -43,12 +43,13 @@ saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, g
 The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan.
 saasAttrValue is a string.
 Event selectors include --event-types, --event-states, --severities, --event-ids (comma-separated), --confidence-indicator and --description; --saas accepts comma-separated SaaS values here.
-Event detail includes available actions; task detail reads status and per-action results once, without waiting or polling:
+Event detail includes available actions; task detail reads status and per-action results once by default:
 
 ```sh
 checkpoint-axi event list --all --event-types phishing --fields events,count,total,complete,reason,cursor
 checkpoint-axi event show synthetic-event-1 --fields event
 checkpoint-axi task show synthetic-task-1 --fields task
+checkpoint-axi task show synthetic-task-1 --wait --timeout 30 --fields task,wait,help
 ```
 
 Inspect exception rules with exception list <kind> or exception show <kind> <id-or-value>:
@@ -82,7 +83,14 @@ Partial expansion keeps every list row and successful detail; list complete/curs
 Use --fields emails,expansion or --fields events,expansion to retain expansion status; --full restores full strings after redaction.
 With --all, list pages can consume the entire request budget before any detail is expanded; reduce the list limit or use individual show reads for remaining IDs.
 Expansion never downloads files, invokes available actions or changes remote state.
-There is no cross-resource pivot or task wait flag; use returned IDs for individual reads and never replay an action to obtain its status.
+Task show reads once by default; use task show <id> --wait --timeout 30 for bounded read-only polling.
+--timeout is required with --wait (integer seconds, range 1-60); --poll-interval defaults to 2 seconds (range 1-10), and --wait-requests defaults to 10 total HTTP requests (range 2-10), including auth and retries.
+Wait stops on completed, failed or stopped; init, inprogress and paused remain non-terminal.
+The task snapshot contains the final status; wait reports terminal, polls (validated status snapshots) and reason (terminal, timeout or budget).
+A non-terminal stop exits 0 with the last snapshot and a read-only next-step hint; inspect wait even on exit 0 and include task,wait,help with --fields.
+Timeout covers auth, requests, retries and delays within the shared 8 MiB response cap; failures before any snapshot remain errors.
+Waiting never resubmits an action or changes remote state; a failed or stopped task is terminal, not successful execution.
+There is no cross-resource pivot; use returned IDs for individual reads and never replay an action to obtain its status.
 
 ```sh
 checkpoint-axi email search --limit 5 --expand --expand-limit 3 --expand-requests 6 --fields emails,count,complete,cursor,expansion

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { catalogue, DESCRIPTION, SETUP_GUIDANCE, EMAIL_FILTER_GUIDANCE, DETAIL_EXPANSION_GUIDANCE } from "../dist/src/catalogue.js";
+import { catalogue, DESCRIPTION, SETUP_GUIDANCE, EMAIL_FILTER_GUIDANCE, DETAIL_EXPANSION_GUIDANCE, TASK_WAIT_GUIDANCE } from "../dist/src/catalogue.js";
 
 const root = new URL("../", import.meta.url);
 const check = process.argv.includes("--check");
@@ -21,7 +21,7 @@ const groupGuides = {
   exception: ["Inspect eight kinds; preview or request supported rule changes", "Read / gated write", "writes.md"],
   home: ["Show local profile context without resolving secrets", "Local read", "configuration.md"],
   profile: ["List named file profiles", "Local read", "configuration.md"],
-  task: ["Inspect asynchronous action status without polling", "Read", "reads.md#event-and-task-reads"],
+  task: ["Inspect asynchronous action status once or with bounded read-only waiting", "Read", "reads.md#event-and-task-reads"],
 };
 const groups = [...new Set(commands.map(([name]) => name.split(" ")[0]))];
 const groupTable = ["| Group | Purpose | Access | Reference |", "|---|---|---|---|", ...groups.map((name) => {
@@ -94,7 +94,8 @@ Event action --ids <ids> --name <action> previews by default and requires the ex
 Every target must offer the action on both reads; nonempty actionParameter objects or repeated action names refuse ENDPOINT_UNVERIFIED until live commissioning resolves the object/string contradiction (guide pages 36-37, 43).
 Use event show <id> to inspect all available actions, including deferred parameterized actions.
 Accepted actions return task IDs; use task show <taskId> to inspect asynchronous execution without replaying ambiguous outcomes.
-Event list supports documented selectors and shares email search bounds and continuation; event show preserves actions and task show reads asynchronous status without polling (guide pages 30-42).
+Event list supports documented selectors and shares email search bounds and continuation; event show preserves actions and task show reads asynchronous status (guide pages 30-42).
+${TASK_WAIT_GUIDANCE}
 Exception list/show accept phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp (guide pages 49-123).
 For malware, url and dlp, --type is required; run exception list --help for the documented values.
 Click-time --items selects item routes; by default list routes are used.
@@ -153,12 +154,13 @@ checkpoint-axi email show synthetic-email-1 --fields email
 Search flags: --saas (default profile SaaS or office365_emails), --saas-entity, and --filter (JSON array of {saasAttrName, saasAttrOp, saasAttrValue}).
 ${EMAIL_FILTER_GUIDANCE.replaceAll(". ", ".\n")}
 Event selectors include --event-types, --event-states, --severities, --event-ids (comma-separated), --confidence-indicator and --description; --saas accepts comma-separated SaaS values here.
-Event detail includes available actions; task detail reads status and per-action results once, without waiting or polling:
+Event detail includes available actions; task detail reads status and per-action results once by default:
 
 \`\`\`sh
 checkpoint-axi event list --all --event-types phishing --fields events,count,total,complete,reason,cursor
 checkpoint-axi event show synthetic-event-1 --fields event
 checkpoint-axi task show synthetic-task-1 --fields task
+checkpoint-axi task show synthetic-task-1 --wait --timeout 30 --fields task,wait,help
 \`\`\`
 
 Inspect exception rules with exception list <kind> or exception show <kind> <id-or-value>:
@@ -185,7 +187,8 @@ Resume with --cursor <returned-cursor> and the original selectors/profile; see [
 Exception --all bounds returned rows at 1000 but cannot fetch additional pages: no continuation parameter is documented.
 Email/event detail already includes available actions, avoiding a separate action lookup.
 ${DETAIL_EXPANSION_GUIDANCE}
-There is no cross-resource pivot or task wait flag; use returned IDs for individual reads and never replay an action to obtain its status.
+${TASK_WAIT_GUIDANCE}
+There is no cross-resource pivot; use returned IDs for individual reads and never replay an action to obtain its status.
 
 \`\`\`sh
 checkpoint-axi email search --limit 5 --expand --expand-limit 3 --expand-requests 6 --fields emails,count,complete,cursor,expansion
@@ -233,7 +236,7 @@ const readmePath = new URL("README.md", root);
 const readme = readFileSync(readmePath, "utf8");
 const start = "<!-- command-registry:start -->\n", end = "\n<!-- command-registry:end -->";
 if (readme.split(start).length !== 2 || readme.split(end).length !== 2) throw new Error("README command registry markers missing or duplicated");
-const summary = `${readme.split(start)[0]}${start}${groupTable}\n\nEmail search --filter accepts a JSON array of {saasAttrName, saasAttrOp, saasAttrValue}.\n${EMAIL_FILTER_GUIDANCE.replaceAll(". ", ".\n")}${end}${readme.split(end)[1]}`;
+const summary = `${readme.split(start)[0]}${start}${groupTable}\n\n${TASK_WAIT_GUIDANCE}\n\nEmail search --filter accepts a JSON array of {saasAttrName, saasAttrOp, saasAttrValue}.\n${EMAIL_FILTER_GUIDANCE.replaceAll(". ", ".\n")}${end}${readme.split(end)[1]}`;
 const outputs = new Map([["docs/agent-guide.md", agentGuide], ["docs/commands.md", `${reference.trimEnd()}\n`], ["skills/checkpoint-axi/SKILL.md", skill], ["README.md", summary]]);
 let stale = false;
 for (const [path, content] of outputs) {

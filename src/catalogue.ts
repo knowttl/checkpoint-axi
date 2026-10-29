@@ -2,6 +2,13 @@ import { exceptionFamilies } from "./exceptions.js";
 
 export const DESCRIPTION = "Inspect Check Point Email Security through compact, guarded AXI commands";
 export const SETUP_GUIDANCE = "Run checkpoint-axi config path; configure a region, clientId and clientSecret env/file SecretRef";
+export const TASK_WAIT_GUIDANCE = "Task show reads once by default; use task show <id> --wait --timeout 30 for bounded read-only polling.\n"
+  + "--timeout is required with --wait (integer seconds, range 1-60); --poll-interval defaults to 2 seconds (range 1-10), and --wait-requests defaults to 10 total HTTP requests (range 2-10), including auth and retries.\n"
+  + "Wait stops on completed, failed or stopped; init, inprogress and paused remain non-terminal.\n"
+  + "The task snapshot contains the final status; wait reports terminal, polls (validated status snapshots) and reason (terminal, timeout or budget).\n"
+  + "A non-terminal stop exits 0 with the last snapshot and a read-only next-step hint; inspect wait even on exit 0 and include task,wait,help with --fields.\n"
+  + "Timeout covers auth, requests, retries and delays within the shared 8 MiB response cap; failures before any snapshot remain errors.\n"
+  + "Waiting never resubmits an action or changes remote state; a failed or stopped task is terminal, not successful execution.";
 export const DETAIL_EXPANSION_GUIDANCE = "Email search and event list accept --expand for read-only show details in each successful row's detail field.\n"
   + "Expansion is off by default; --expand-limit caps detail attempts (default 5, range 1-8), and --expand-requests caps total HTTP requests (default 10, range 2-10), including auth, list pages and retries.\n"
   + "Both limit flags require --expand; listing runs first and shares the 60-second and 8 MiB transport budgets with detail reads.\n"
@@ -99,8 +106,12 @@ export const catalogue = {
   }, examples: ["checkpoint-axi event list", "checkpoint-axi event list --limit 5 --expand --event-types phishing", "checkpoint-axi event list --cursor <cursor>"] },
   "event show": { description: "Show one event, actions taken and available actions (API guide pages 34-37)", flags: common,
     examples: ["checkpoint-axi event show <id>", "checkpoint-axi event show <id> --full"] },
-  "task show": { description: "Show asynchronous task status and per-action details (API guide pages 30-33)", flags: common,
-    examples: ["checkpoint-axi task show <id>", "checkpoint-axi task show <id> --full"] },
+  "task show": { description: "Show asynchronous task status and per-action details, optionally waiting within explicit bounds (API guide pages 30-33)", flags: { ...common,
+    wait: "Poll existing task status only; default false; requires --timeout; terminal: completed, failed, stopped",
+    timeout: "Total wait timeout in integer seconds, range 1-60; required with --wait; includes auth and retries",
+    "poll-interval": "Seconds between status reads; default 2, range 1-10; requires --wait",
+    "wait-requests": "Total HTTP request cap including auth and retries; default 10, range 2-10; requires --wait",
+  }, examples: ["checkpoint-axi task show <id>", "checkpoint-axi task show <id> --wait --timeout 30 --fields task,wait,help", "checkpoint-axi task show <id> --full"] },
   "email search": { description: "Search emails with a bounded date window and scroll continuation (API guide pages 18-27)", flags: { ...common,
     saas: "SaaS override; default selected profile saas or office365_emails",
     "saas-entity": "Optional SaaS entity type selector",

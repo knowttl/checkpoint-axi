@@ -72,10 +72,10 @@ function tokenFrom(value: unknown, redactor: SecretRedactor): string {
   return [...tokens][0]!;
 }
 
-export function gateway(profile: SelectedProfile, credentials: { clientId: string; clientSecret: string }, redactor: SecretRedactor, dependencies: Dependencies = {}, mutation = false, requestLimit: number = READ_LIMITS.requests) {
+export function gateway(profile: SelectedProfile, credentials: { clientId: string; clientSecret: string }, redactor: SecretRedactor, dependencies: Dependencies = {}, mutation = false, requestLimit: number = READ_LIMITS.requests, milliseconds: number = READ_LIMITS.milliseconds) {
   const now = dependencies.now ?? Date.now;
   const wait = dependencies.wait ?? delay;
-  const deadline = now() + READ_LIMITS.milliseconds;
+  const deadline = now() + Math.min(milliseconds, READ_LIMITS.milliseconds);
   let bytes = 0;
   let requests = 0;
   let token: string | undefined;

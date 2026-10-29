@@ -32,7 +32,7 @@ Run each command with `--help` for concise help.
 | `checkpoint-axi exception update` | Preview or replace one exception; phishing/spam/click-time require an ID; malware/url/dlp identify it in --input without an ID; anomaly unsupported (guide pages 64-67, 78-81, 94-96, 105-107, 116-117, 126-127) |
 | `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
-| `checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
+| `checkpoint-axi task show` | Show asynchronous task status and per-action details, optionally waiting within explicit bounds (API guide pages 30-33) |
 
 ## attachment download
 
@@ -479,7 +479,7 @@ checkpoint-axi profile list --config /example/config.json
 
 ## task show
 
-Show asynchronous task status and per-action details (API guide pages 30-33)
+Show asynchronous task status and per-action details, optionally waiting within explicit bounds (API guide pages 30-33)
 
 | Flag | Meaning |
 |---|---|
@@ -488,8 +488,13 @@ Show asynchronous task status and per-action details (API guide pages 30-33)
 | `--fields` | Comma-separated output fields; default all |
 | `--full` | Show full strings instead of 500-character previews; default false |
 | `--help` | Show concise command help; default false |
+| `--wait` | Poll existing task status only; default false; requires --timeout; terminal: completed, failed, stopped |
+| `--timeout` | Total wait timeout in integer seconds, range 1-60; required with --wait; includes auth and retries |
+| `--poll-interval` | Seconds between status reads; default 2, range 1-10; requires --wait |
+| `--wait-requests` | Total HTTP request cap including auth and retries; default 10, range 2-10; requires --wait |
 
 ```sh
 checkpoint-axi task show <id>
+checkpoint-axi task show <id> --wait --timeout 30 --fields task,wait,help
 checkpoint-axi task show <id> --full
 ```
