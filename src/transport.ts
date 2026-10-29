@@ -72,7 +72,7 @@ function tokenFrom(value: unknown, redactor: SecretRedactor): string {
   return [...tokens][0]!;
 }
 
-export function gateway(profile: SelectedProfile, credentials: { clientId: string; clientSecret: string }, redactor: SecretRedactor, dependencies: Dependencies = {}, mutation = false) {
+export function gateway(profile: SelectedProfile, credentials: { clientId: string; clientSecret: string }, redactor: SecretRedactor, dependencies: Dependencies = {}, mutation = false, requestLimit: number = READ_LIMITS.requests) {
   const now = dependencies.now ?? Date.now;
   const wait = dependencies.wait ?? delay;
   const deadline = now() + READ_LIMITS.milliseconds;
@@ -91,7 +91,7 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
   async function send(path: string, body?: unknown, bearer?: string, method = body === undefined ? "GET" : "POST", allowEmpty = false, binary = false, scopes?: string) {
     const remaining = deadline - now();
     if (remaining <= 0) throw failure("TIME_BUDGET", "Read time budget exhausted");
-    if (++requests > (mutation ? 44 : READ_LIMITS.requests)) throw failure("REQUEST_BUDGET", "Request budget exhausted");
+    if (++requests > (mutation ? 44 : Math.min(requestLimit, READ_LIMITS.requests))) throw failure("REQUEST_BUDGET", "Request budget exhausted");
     const payload = body === undefined ? undefined : JSON.stringify(body);
     if (bearer) redactor.add(`Bearer ${bearer}`);
     return new Promise<{ status: number; retryAfter?: string; value: unknown; sha256?: string }>((resolve, reject) => {

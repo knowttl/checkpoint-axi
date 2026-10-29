@@ -63,6 +63,34 @@ Event and task text is redacted before 500-character previews; use `--full` for 
 For writes, see [event actions](writes.md#event-actions).
 These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior require manual verification.
 
+## Bounded detail expansion
+
+Email search and event list accept `--expand` to inspect returned items through the same validated read-only path as their individual show commands.
+Expansion is off by default; available actions are returned as data and are never invoked.
+
+```sh
+checkpoint-axi email search --limit 5 --expand --expand-limit 3 --expand-requests 6
+checkpoint-axi event list --limit 5 --expand --fields events,count,complete,cursor,expansion
+```
+
+`--expand-limit` caps detail attempts, including failed attempts: default 5, minimum 1, maximum 8.
+`--expand-requests` caps total HTTP requests for the invocation: default 10, minimum 2, maximum 10.
+Both limit flags require `--expand`; invalid bounds are rejected before configuration or network access.
+Authentication, token re-exchange, list pages, detail requests and read retries all consume this request cap.
+Listing runs first; detail reads reuse its token, deadline and response-byte accounting without resetting the 60-second or 8 MiB budgets.
+Using `--all` can therefore consume the entire budget before any detail is fetched.
+Use a smaller list limit to leave room for detail, or inspect remaining IDs with individual show commands.
+
+Each successfully expanded row gains `detail`, containing the same validated payload and actions as show, with normal secret redaction and 500-character string previews (`--full` restores full strings).
+Every list row and successful detail survives expansion failures; partial expansion exits 0.
+The `expansion` object reports `expanded`, `attempted`, `itemLimit`, `requestLimit`, `complete` and `notExpanded`.
+Each `notExpanded` entry includes the item `id` and `reason`: `item-cap-reached`, `request-cap-reached`, `budget-exhausted` or `per-item-error`.
+Budget and per-item failures also include a safe error `code`; raw upstream error bodies are never printed.
+Budget exhaustion stops further detail attempts; an individual HTTP, response-validation or other read failure records that item and continues within the caps.
+List `complete`, `reason` and `cursor` still describe pagination; `complete` inside `expansion` independently describes whether every returned row was expanded.
+With `--fields`, include `expansion` alongside `emails` or `events` so omissions remain visible.
+Expansion performs no writes, actions, downloads, cross-resource pivots or task waiting.
+
 ## Exception reads
 
 `checkpoint-axi exception list <kind>` and `exception show <kind> <id-or-value>` cover `phishing-allow`, `phishing-block`, `spam-allow`, `anomaly`, `click-time`, `malware`, `url` and `dlp` (guide pages 49-123).

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { catalogue, DESCRIPTION, SETUP_GUIDANCE, EMAIL_FILTER_GUIDANCE } from "../dist/src/catalogue.js";
+import { catalogue, DESCRIPTION, SETUP_GUIDANCE, EMAIL_FILTER_GUIDANCE, DETAIL_EXPANSION_GUIDANCE } from "../dist/src/catalogue.js";
 
 const root = new URL("../", import.meta.url);
 const check = process.argv.includes("--check");
@@ -78,6 +78,7 @@ Use --saas-entity for an entity type or --filter for a JSON array of {saasAttrNa
 ${EMAIL_FILTER_GUIDANCE.replaceAll(". ", ".\n")}
 See [email-read guidance](../../docs/reads.md#email-reads) for continuation, completion status, cursor safety and page replay limitations.
 Email show <id> includes payload, verdicts, actions taken and available actions (guide pages 10-18).
+${DETAIL_EXPANSION_GUIDANCE}
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.
 Cursor strings are never truncated; secret-derived strings are redacted before previews.
 Downloads require file-profile downloads.allow and an absolute new --out file, created exclusively with mode 0600 or a protected Windows DACL.
@@ -183,7 +184,13 @@ Inspect complete, reason and cursor even on exit 0; limits and page replay can l
 Resume with --cursor <returned-cursor> and the original selectors/profile; see [continuation limitations](reads.md#email-reads).
 Exception --all bounds returned rows at 1000 but cannot fetch additional pages: no continuation parameter is documented.
 Email/event detail already includes available actions, avoiding a separate action lookup.
-There is no bulk detail expansion, cross-resource pivot or task wait flag; use returned IDs for individual reads and never replay an action to obtain its status.
+${DETAIL_EXPANSION_GUIDANCE}
+There is no cross-resource pivot or task wait flag; use returned IDs for individual reads and never replay an action to obtain its status.
+
+\`\`\`sh
+checkpoint-axi email search --limit 5 --expand --expand-limit 3 --expand-requests 6 --fields emails,count,complete,cursor,expansion
+checkpoint-axi event list --limit 5 --expand --fields events,count,complete,cursor,expansion
+\`\`\`
 
 --fields selects top-level output keys, not nested row columns: request emails or events together with count,total,complete,reason,cursor for lists, and email,event,task or exception for details.
 Email rows contain id,subject,state,verdict; event rows contain id,type,state,severity; documented exception rows contain id,sender,subject,comment.

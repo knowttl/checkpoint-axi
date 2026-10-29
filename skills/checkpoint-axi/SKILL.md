@@ -49,6 +49,14 @@ The guide defines operators globally, without a per-field compatibility matrix; 
 saasAttrValue is a string.
 See [email-read guidance](../../docs/reads.md#email-reads) for continuation, completion status, cursor safety and page replay limitations.
 Email show <id> includes payload, verdicts, actions taken and available actions (guide pages 10-18).
+Email search and event list accept --expand for read-only show details in each successful row's detail field.
+Expansion is off by default; --expand-limit caps detail attempts (default 5, range 1-8), and --expand-requests caps total HTTP requests (default 10, range 2-10), including auth, list pages and retries.
+Both limit flags require --expand; listing runs first and shares the 60-second and 8 MiB transport budgets with detail reads.
+Inspect the expansion object's expanded, complete and notExpanded fields for every unexpanded ID and its reason: item-cap-reached, request-cap-reached, budget-exhausted or per-item-error (with an error code).
+Partial expansion keeps every list row and successful detail; list complete/cursor describe pagination separately.
+Use --fields emails,expansion or --fields events,expansion to retain expansion status; --full restores full strings after redaction.
+With --all, list pages can consume the entire request budget before any detail is expanded; reduce the list limit or use individual show reads for remaining IDs.
+Expansion never downloads files, invokes available actions or changes remote state.
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.
 Cursor strings are never truncated; secret-derived strings are redacted before previews.
 Downloads require file-profile downloads.allow and an absolute new --out file, created exclusively with mode 0600 or a protected Windows DACL.

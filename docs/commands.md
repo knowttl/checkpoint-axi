@@ -197,11 +197,14 @@ Search emails with a bounded date window and scroll continuation (API guide page
 | `--limit` | Maximum rows; default 50, range 1-1000; cannot combine with --all |
 | `--all` | Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false |
 | `--cursor` | Opaque continuation bound to profile, region, operation and selectors; repeat original selectors |
+| `--expand` | Opt in to read-only show details on returned rows; default false; partial expansion is reported separately |
+| `--expand-limit` | Maximum detail attempts; default 5, range 1-8; requires --expand |
+| `--expand-requests` | Total HTTP request cap including auth, list pages, detail and retries; default 10, range 2-10; requires --expand |
 | `--filter` | JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters. saasAttrName is a field path, not a closed enum (guide pages 19-20). Documented examples: entityPayload.subject, entityPayload.fromEmail, entityPayload.attachmentCount. Other documented email payload paths (pages 15-16, 24-25): entityPayload.internetMessageId, entityPayload.received, entityPayload.size, entityPayload.emailLinks, entityPayload.attachments, entityPayload.mode, entityPayload.recipients, entityPayload.fromDomain, entityPayload.fromUser, entityPayload.fromName, entityPayload.to, entityPayload.toUser, entityPayload.cc, entityPayload.ccUser, entityPayload.bcc, entityPayload.bccUser, entityPayload.replyToEmail, entityPayload.replyToNickname, entityPayload.isRead, entityPayload.isDeleted, entityPayload.isIncoming, entityPayload.isInternal, entityPayload.isOutgoing, entityPayload.isQuarantined, entityPayload.isQuarantineNotification, entityPayload.isRestored, entityPayload.isRestoreRequested, entityPayload.isRestoreDeclined, entityPayload.saasSpamVerdict, entityPayload.SpfResult. saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan. The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan. saasAttrValue is a string. |
 
 ```sh
 checkpoint-axi email search
-checkpoint-axi email search --all --saas office365_emails
+checkpoint-axi email search --limit 5 --expand --saas office365_emails
 checkpoint-axi email search --cursor <cursor>
 ```
 
@@ -260,6 +263,9 @@ List security events with bounded scroll continuation (API guide pages 37-42)
 | `--limit` | Maximum rows; default 50, range 1-1000; cannot combine with --all |
 | `--all` | Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false |
 | `--cursor` | Opaque continuation bound to profile, region, operation and selectors; repeat original selectors |
+| `--expand` | Opt in to read-only show details on returned rows; default false; partial expansion is reported separately |
+| `--expand-limit` | Maximum detail attempts; default 5, range 1-8; requires --expand |
+| `--expand-requests` | Total HTTP request cap including auth, list pages, detail and retries; default 10, range 2-10; requires --expand |
 | `--saas` | Comma-separated SaaS overrides; default selected profile saas or office365_emails |
 | `--event-types` | Comma-separated event types; default unfiltered |
 | `--event-states` | Comma-separated event states; default unfiltered |
@@ -270,7 +276,7 @@ List security events with bounded scroll continuation (API guide pages 37-42)
 
 ```sh
 checkpoint-axi event list
-checkpoint-axi event list --all --event-types phishing
+checkpoint-axi event list --limit 5 --expand --event-types phishing
 checkpoint-axi event list --cursor <cursor>
 ```
 

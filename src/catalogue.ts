@@ -2,6 +2,14 @@ import { exceptionFamilies } from "./exceptions.js";
 
 export const DESCRIPTION = "Inspect Check Point Email Security through compact, guarded AXI commands";
 export const SETUP_GUIDANCE = "Run checkpoint-axi config path; configure a region, clientId and clientSecret env/file SecretRef";
+export const DETAIL_EXPANSION_GUIDANCE = "Email search and event list accept --expand for read-only show details in each successful row's detail field.\n"
+  + "Expansion is off by default; --expand-limit caps detail attempts (default 5, range 1-8), and --expand-requests caps total HTTP requests (default 10, range 2-10), including auth, list pages and retries.\n"
+  + "Both limit flags require --expand; listing runs first and shares the 60-second and 8 MiB transport budgets with detail reads.\n"
+  + "Inspect the expansion object's expanded, complete and notExpanded fields for every unexpanded ID and its reason: item-cap-reached, request-cap-reached, budget-exhausted or per-item-error (with an error code).\n"
+  + "Partial expansion keeps every list row and successful detail; list complete/cursor describe pagination separately.\n"
+  + "Use --fields emails,expansion or --fields events,expansion to retain expansion status; --full restores full strings after redaction.\n"
+  + "With --all, list pages can consume the entire request budget before any detail is expanded; reduce the list limit or use individual show reads for remaining IDs.\n"
+  + "Expansion never downloads files, invokes available actions or changes remote state.";
 export const EMAIL_PAYLOAD_ATTRIBUTES = ["subject", "fromEmail", "attachmentCount", "internetMessageId", "received", "size", "emailLinks", "attachments", "mode", "recipients", "fromDomain", "fromUser", "fromName", "to", "toUser", "cc", "ccUser", "bcc", "bccUser", "replyToEmail", "replyToNickname", "isRead", "isDeleted", "isIncoming", "isInternal", "isOutgoing", "isQuarantined", "isQuarantineNotification", "isRestored", "isRestoreRequested", "isRestoreDeclined", "saasSpamVerdict", "SpfResult"].map((name) => `entityPayload.${name}`);
 export const EMAIL_FILTER_GUIDANCE = "saasAttrName is a field path, not a closed enum (guide pages 19-20). Documented examples: "
   + EMAIL_PAYLOAD_ATTRIBUTES.slice(0, 3).join(", ") + ". Other documented email payload paths (pages 15-16, 24-25): "
@@ -23,6 +31,12 @@ const paging = {
   cursor: "Opaque continuation bound to profile, region, operation and selectors; repeat original selectors",
 };
 const exceptionType = `Required for ${["malware", "url", "dlp"].map((kind) => `${kind}: ${exceptionFamilies[kind as "malware" | "url" | "dlp"].types.join(",")}`).join("; ")}`;
+
+const expansion = {
+  expand: "Opt in to read-only show details on returned rows; default false; partial expansion is reported separately",
+  "expand-limit": "Maximum detail attempts; default 5, range 1-8; requires --expand",
+  "expand-requests": "Total HTTP request cap including auth, list pages, detail and retries; default 10, range 2-10; requires --expand",
+};
 
 const writeFlags = { ...common,
   ids: "Required comma-separated unique entity IDs; maximum 20",
@@ -74,7 +88,7 @@ export const catalogue = {
   "exception show": { description: "Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123)",
     flags: { ...common, type: exceptionType, items: "Click-time item route instead of list route; default false" },
     examples: ["checkpoint-axi exception show phishing-block <id>", "checkpoint-axi exception show url <value> --type allow-url", "checkpoint-axi exception show click-time <id> --items --full"] },
-  "event list": { description: "List security events with bounded scroll continuation (API guide pages 37-42)", flags: { ...common, ...paging,
+  "event list": { description: "List security events with bounded scroll continuation (API guide pages 37-42)", flags: { ...common, ...paging, ...expansion,
     saas: "Comma-separated SaaS overrides; default selected profile saas or office365_emails",
     "event-types": "Comma-separated event types; default unfiltered",
     "event-states": "Comma-separated event states; default unfiltered",
@@ -82,7 +96,7 @@ export const catalogue = {
     "event-ids": "Comma-separated event IDs; default unfiltered",
     "confidence-indicator": "Confidence indicator selector; default unfiltered",
     description: "Description selector; default unfiltered",
-  }, examples: ["checkpoint-axi event list", "checkpoint-axi event list --all --event-types phishing", "checkpoint-axi event list --cursor <cursor>"] },
+  }, examples: ["checkpoint-axi event list", "checkpoint-axi event list --limit 5 --expand --event-types phishing", "checkpoint-axi event list --cursor <cursor>"] },
   "event show": { description: "Show one event, actions taken and available actions (API guide pages 34-37)", flags: common,
     examples: ["checkpoint-axi event show <id>", "checkpoint-axi event show <id> --full"] },
   "task show": { description: "Show asynchronous task status and per-action details (API guide pages 30-33)", flags: common,
@@ -90,9 +104,9 @@ export const catalogue = {
   "email search": { description: "Search emails with a bounded date window and scroll continuation (API guide pages 18-27)", flags: { ...common,
     saas: "SaaS override; default selected profile saas or office365_emails",
     "saas-entity": "Optional SaaS entity type selector",
-    ...paging,
+    ...paging, ...expansion,
     filter: `JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters. ${EMAIL_FILTER_GUIDANCE}`,
-  }, examples: ["checkpoint-axi email search", "checkpoint-axi email search --all --saas office365_emails", "checkpoint-axi email search --cursor <cursor>"] },
+  }, examples: ["checkpoint-axi email search", "checkpoint-axi email search --limit 5 --expand --saas office365_emails", "checkpoint-axi email search --cursor <cursor>"] },
   "email show": { description: "Show one email with verdicts, actions and available actions (API guide pages 10-18)", flags: common,
     examples: ["checkpoint-axi email show <id>", "checkpoint-axi email show <id> --full"] },
   doctor: { description: "Check regional API authentication and one bounded email search without printing tenant data", flags: { ...common, saas: "SaaS override; default selected profile saas or office365_emails" },
