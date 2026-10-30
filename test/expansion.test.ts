@@ -132,7 +132,7 @@ for (const kind of ["email", "event"] as const) {
     expect(result.data[rows]).toHaveLength(2);
     expect(result.data[rows][1].detail).toEqual(second);
     expect(result.data.expansion).toMatchObject({ expanded: 1, attempted: 2, complete: false,
-      notExpanded: [{ id: `synthetic-${kind}-1`, reason: "per-item-error", code: "HTTP_ERROR" }] });
+      notExpanded: [{ id: `synthetic-${kind}-1`, reason: "per-item-error", code: "NOT_FOUND" }] });
     expect(result.output).not.toContain("synthetic-secret-sentinel");
   });
 

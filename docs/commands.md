@@ -187,7 +187,7 @@ Search emails with a bounded date window and scroll continuation (API guide page
 |---|---|
 | `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
 | `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
-| `--fields` | Comma-separated output fields; default all |
+| `--fields` | Comma-separated row fields: id,subject,state,verdict; or top-level emails,count,total,complete,reason,cursor,expansion,help; default all |
 | `--full` | Show full strings instead of 500-character previews; default false |
 | `--help` | Show concise command help; default false |
 | `--saas` | SaaS override; default selected profile saas or office365_emails |
@@ -255,7 +255,7 @@ List security events with bounded scroll continuation (API guide pages 37-42)
 |---|---|
 | `--config` | Config path; default CHECKPOINT_AXI_CONFIG or platform path |
 | `--profile` | Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile |
-| `--fields` | Comma-separated output fields; default all |
+| `--fields` | Comma-separated row fields: id,type,state,severity; or top-level events,count,total,complete,reason,cursor,expansion,help; default all |
 | `--full` | Show full strings instead of 500-character previews; default false |
 | `--help` | Show concise command help; default false |
 | `--start-date` | ISO timestamp with timezone; default 24 hours before end-date; maximum window 31 days |
@@ -268,8 +268,9 @@ List security events with bounded scroll continuation (API guide pages 37-42)
 | `--expand-requests` | Total HTTP request cap including auth, list pages, detail and retries; default 10, range 2-10; requires --expand |
 | `--saas` | Comma-separated SaaS overrides; default selected profile saas or office365_emails |
 | `--event-types` | Comma-separated event types; default unfiltered |
-| `--event-states` | Comma-separated event states; default unfiltered |
-| `--severities` | Comma-separated severities; default unfiltered |
+| `--event-states` | Comma-separated event states: new, detected, pending, remediated, dismissed, exception; default unfiltered |
+| `--states` | Alias for --event-states; cannot combine with --event-states |
+| `--severities` | Comma-separated severity strings; vendor Swagger defines no closed value set; default unfiltered |
 | `--event-ids` | Comma-separated event IDs; default unfiltered |
 | `--confidence-indicator` | Confidence indicator selector; default unfiltered |
 | `--description` | Description selector; default unfiltered |

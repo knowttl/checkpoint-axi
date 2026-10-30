@@ -43,11 +43,11 @@ Cursor strings are never truncated; email text is redacted before 500-character 
 See [downloads](downloads.md) for private file output.
 
 The vendor PDF describes `entitySecurityResults` as an array in its prose/table (pages 11 and 14), while its JSON examples use an object.
-Both documented forms are accepted; detail preserves them, and search reports `verdict: null` for an array because no combined verdict object is documented there.
-Other response constraints remain unchanged.
+Both forms are accepted; search uses `combinedVerdict` from the object or the first array entry containing one, and reports `verdict: null` when none is available.
+Null or missing `entityActionState` within `entityInfo` is rendered as `unactioned` in search and detail.
 `RESPONSE_INVALID` diagnostics for these reads name failing JSON paths and received types, including `missing`, without response values.
 Non-identifier path keys appear as `<key>`.
-These diagnostics support owner commissioning; the actual failing fields behind TD-049's live unfiltered-search and spam-detail failures remain unverified.
+The reported unfiltered-search and spam-detail failures identified null action states; synthetic clean and spam fixtures exercise that shape offline.
 
 ## Event and task reads
 
@@ -70,10 +70,17 @@ Failures before any snapshot and non-budget read failures remain structured erro
 Use `--fields task,wait,help` to retain wait metadata and recovery guidance when projecting output.
 Waiting only repeats the existing task status GET; it never invokes an available action, downloads a file or resubmits the original mutation.
 Event list accepts comma-separated `--event-types`, `--event-states`, `--severities`, `--event-ids` and `--saas`, plus `--confidence-indicator` and `--description` text selectors.
+`--states` is an alias for `--event-states`; use one of these flags per command.
+States must be `new`, `detected`, `pending`, `remediated`, `dismissed` or `exception`, as defined by the vendor Swagger 1.50 `EventState` schema.
+The Swagger defines severities as strings without an enum, so only nonempty comma-separated values are validated.
+HTTP 404 reads return `NOT_FOUND`; HTTP 422 detail reads identify the requested ID without printing server response data.
 SaaS defaults to the selected profile's value or `office365_emails`; other event selectors default to unfiltered.
 Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](reads.md#email-reads).
 Repeat all original event selectors with `--cursor`; the cursor preserves the original date window.
 Event and task text is redacted before 500-character previews; use `--full` for full strings and `--fields` to select top-level fields.
+Email search also accepts row fields `id,subject,state,verdict`; event list accepts `id,type,state,severity`.
+For example, `email search --fields id,subject` narrows each email row while retaining pagination metadata.
+Existing top-level projections such as `--fields emails,count,cursor` remain supported; unknown fields list both valid sets.
 For writes, see [event actions](writes.md#event-actions).
 These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior require manual verification.
 

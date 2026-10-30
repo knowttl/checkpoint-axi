@@ -7,6 +7,7 @@ import { localFixture } from "./support/local-cli.js";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/email-page.json", import.meta.url), "utf8"));
 const arrayFixture = JSON.parse(readFileSync(new URL("./fixtures/email-security-array-page.json", import.meta.url), "utf8"));
+const unactioned = JSON.parse(readFileSync(new URL("./fixtures/email-unactioned-page.json", import.meta.url), "utf8"));
 const window = ["--start-date", "2026-01-01T00:00:00Z", "--end-date", "2026-01-02T00:00:00Z"];
 const cleanups: (() => unknown | Promise<unknown>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); process.exitCode = 0; });
@@ -27,6 +28,56 @@ async function setup(handler: Parameters<typeof fakeGateway>[0], timing: { now?:
   } };
 }
 
+test("search accepts unactioned clean and spam emails", async () => {
+  const cli = await setup((_request, response) => response.end(JSON.stringify(unactioned)));
+  const result = await cli.run(["email", "search"]);
+  expect(result.code, result.output).toBe(0);
+  expect(result.data.emails.map((row: any) => row.state)).toEqual(["unactioned", "unactioned"]);
+});
+
+test.each(unactioned.responseData as { entityInfo: { entityId: string } }[])("show accepts null action state for $entityInfo.entityId", async (record) => {
+  const cli = await setup((_request, response) => response.end(JSON.stringify({ ...unactioned, responseData: record })));
+  const result = await cli.run(["email", "show", record.entityInfo.entityId]);
+  expect(result.code, result.output).toBe(0);
+  expect(result.data.email.entityInfo.entityActionState).toBe("unactioned");
+});
+
+test("show renders a missing action state as unactioned", async () => {
+  const record = structuredClone(unactioned.responseData[0]);
+  delete record.entityInfo.entityActionState;
+  const cli = await setup((_request, response) => response.end(JSON.stringify({ ...unactioned, responseData: record })));
+  const result = await cli.run(["email", "show", record.entityInfo.entityId]);
+  expect(result.code, result.output).toBe(0);
+  expect(result.data.email.entityInfo.entityActionState).toBe("unactioned");
+});
+
+test.each([
+  { fields: "id,subject", expected: { id: "synthetic-email-1", subject: "Synthetic message" } },
+  { fields: "id,state,verdict", expected: { id: "synthetic-email-1", state: "quarantined", verdict: { ap: "phishing", av: "clean" } } },
+])("search projects row fields $fields", async ({ fields, expected }) => {
+  const cli = await setup((_request, response) => response.end(JSON.stringify(fixture)));
+  const result = await cli.run(["email", "search", "--fields", fields]);
+  expect(result.code, result.output).toBe(0);
+  expect(result.data.emails).toEqual([expected]);
+  expect(result.data.count).toBe(1);
+});
+
+test.each(["object", "array"])("search extracts combined verdict from %s security results", async (shape) => {
+  const record = structuredClone(fixture.responseData[0]);
+  record.entitySecurityResults = shape === "array" ? [record.entitySecurityResults] : record.entitySecurityResults;
+  const cli = await setup((_request, response) => response.end(JSON.stringify({ ...fixture, responseData: [record] })));
+  expect((await cli.run(["email", "search"])).data.emails[0].verdict).toEqual({ ap: "phishing", av: "clean" });
+});
+
+test("invalid filter operator lists documented operators before config access", async () => {
+  const local = localFixture();
+  cleanups.push(local.cleanup);
+  local.env.CHECKPOINT_AXI_CONFIG = "/missing/config.json";
+  const result = await local.run(["email", "search", "--filter", JSON.stringify([{ saasAttrName: "entityPayload.subject", saasAttrOp: "eq", saasAttrValue: "Synthetic" }])]);
+  expect(result.code).toBe(2);
+  expect(result.output).toContain("is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan");
+});
+
 test("search defaults to 50 compact rows in a 24-hour window", async () => {
   const records = Array.from({ length: 51 }, (_, index) => ({ ...fixture.responseData[0], entityInfo: { entityId: `synthetic-email-${index}` } }));
   let body: any;
@@ -41,7 +92,7 @@ test("search defaults to 50 compact rows in a 24-hour window", async () => {
   expect(result.data.count).toBe(50);
   expect(result.data.complete).toBe(false);
   expect(result.data.cursor.length).toBeGreaterThan(0);
-  expect(result.data.emails[0]).toEqual({ id: "synthetic-email-0", subject: "Synthetic message", state: "", verdict: { ap: "phishing", av: "clean" } });
+  expect(result.data.emails[0]).toEqual({ id: "synthetic-email-0", subject: "Synthetic message", state: "unactioned", verdict: { ap: "phishing", av: "clean" } });
   expect(body.requestData.entityFilter.saas).toBe("office365_emails");
   expect(Date.parse(body.requestData.entityFilter.endDate) - Date.parse(body.requestData.entityFilter.startDate)).toBe(86_400_000);
 });
@@ -65,13 +116,13 @@ test.each([
   { command: "show", array: false, prefix: "$.responseData" },
 ])("$command names invalid field paths and types without response values (array: $array)", async ({ command, array, prefix }) => {
   const record = structuredClone(fixture.responseData[0]);
-  record.entityInfo.entityActionState = null;
+  record.entityInfo.entityActionState = 42;
   record.entityPayload.subject = { "sender@example.test": "private-response-sentinel" };
   const cli = await setup((_request, response) => response.end(JSON.stringify({ ...fixture, responseData: array ? [record] : record })));
   const result = await cli.run(["email", command, ...(command === "show" ? ["synthetic-email-1"] : [])]);
   expect(result.code).toBe(1);
   expect(result.data.error.code).toBe("RESPONSE_INVALID");
-  expect(result.data.error.message).toContain(`${prefix}.entityInfo.entityActionState: null`);
+  expect(result.data.error.message).toContain(`${prefix}.entityInfo.entityActionState: number`);
   expect(result.data.error.message).toContain(`${prefix}.entityPayload.subject: object`);
   expect(result.output).not.toMatch(/sender@example\.test|private-response-sentinel/);
 });

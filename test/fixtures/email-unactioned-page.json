@@ -1,0 +1,17 @@
+{
+  "responseEnvelope": { "responseCode": 0, "recordsNumber": 2, "totalRecordsNumber": 2, "scrollId": "" },
+  "responseData": [
+    {
+      "entityInfo": { "entityId": "synthetic-clean", "customerId": "synthetic-customer", "saas": "office365_emails", "saasEntityType": "office365_emails_email", "entityCreated": "2026-01-01T12:00:00Z", "entityUpdated": "2026-01-01T12:01:00Z", "entityActionState": null },
+      "entityPayload": { "internetMessageId": "<synthetic-clean@example.test>", "subject": "Synthetic clean message", "received": "2026-01-01T12:00:00Z", "fromEmail": "sender@example.test", "to": ["recipient@example.test"], "attachmentCount": 0, "mode": "inline", "isRead": false, "isDeleted": false, "isIncoming": true, "isInternal": false, "isOutgoing": false, "isQuarantined": false, "isQuarantineNotification": false, "isRestored": false, "isRestoreRequested": false, "isRestoreDeclined": false, "saasSpamVerdict": "clean" },
+      "entitySecurityResults": { "combinedVerdict": { "ap": "clean", "av": "clean" } },
+      "entityActions": [], "entityAvailableActions": [{ "entityActionName": "quarantine", "entityActionParam": "" }]
+    },
+    {
+      "entityInfo": { "entityId": "synthetic-spam", "customerId": "synthetic-customer", "saas": "office365_emails", "saasEntityType": "office365_emails_email", "entityCreated": "2026-01-01T12:00:00Z", "entityUpdated": "2026-01-01T12:01:00Z", "entityActionState": null },
+      "entityPayload": { "internetMessageId": "<synthetic-spam@example.test>", "subject": "Synthetic spam message", "received": "2026-01-01T12:00:00Z", "fromEmail": "sender@example.test", "to": ["recipient@example.test"], "attachmentCount": 0, "mode": "inline", "isRead": false, "isDeleted": false, "isIncoming": true, "isInternal": false, "isOutgoing": false, "isQuarantined": false, "isQuarantineNotification": false, "isRestored": false, "isRestoreRequested": false, "isRestoreDeclined": false, "saasSpamVerdict": "spam" },
+      "entitySecurityResults": [{ "combinedVerdict": { "ap": "spam", "av": "clean" } }],
+      "entityActions": [], "entityAvailableActions": [{ "entityActionName": "quarantine", "entityActionParam": "" }]
+    }
+  ]
+}

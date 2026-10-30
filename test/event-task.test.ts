@@ -27,6 +27,50 @@ async function setup(handler: Parameters<typeof fakeGateway>[0], timing: { now?:
   } };
 }
 
+test("event list projects selected row fields", async () => {
+  const cli = await setup((_request, response) => response.end(JSON.stringify(eventPage)));
+  const result = await cli.run(["event", "list", "--fields", "id,type"]);
+  expect(result.code, result.output).toBe(0);
+  expect(result.data.events).toEqual([{ id: "synthetic-event-1", type: "phishing" }]);
+  expect(result.data.count).toBe(1);
+});
+
+test.each([
+  ["email", "search", "id,subject,state,verdict"],
+  ["event", "list", "id,type,state,severity"],
+])("%s %s names valid row fields for an unknown field", async (kind, command, valid) => {
+  const local = localFixture();
+  cleanups.push(local.cleanup);
+  local.env.CHECKPOINT_AXI_CONFIG = "/missing/config.json";
+  const result = await local.run([kind, command, "--fields", "bogus"]);
+  expect(result.code).toBe(2);
+  expect(result.output).toContain(valid);
+});
+
+test.each(["--event-states", "--states"])("%s rejects unknown states before config access", async (flag) => {
+  const local = localFixture();
+  cleanups.push(local.cleanup);
+  local.env.CHECKPOINT_AXI_CONFIG = "/missing/config.json";
+  const result = await local.run(["event", "list", flag, "unknown"]);
+  expect(result.code).toBe(2);
+  expect(result.output).toContain("new, detected, pending, remediated, dismissed, exception");
+});
+
+test.each(["email", "event", "task"])("%s show maps HTTP 404 to NOT_FOUND", async (kind) => {
+  const cli = await setup((_request, response) => { response.writeHead(404); response.end(JSON.stringify({ detail: "private-response-sentinel" })); });
+  const result = await cli.run([kind, "show", "synthetic-missing"]);
+  expect(result.data.error.code).toBe("NOT_FOUND");
+  expect(result.output).not.toContain("private-response-sentinel");
+});
+
+test.each(["email", "event", "task"])("%s show HTTP 422 names only the requested ID", async (kind) => {
+  const cli = await setup((_request, response) => { response.writeHead(422); response.end(JSON.stringify({ detail: [{ loc: ["path", "id"], msg: "private-response-sentinel", type: "type_error.integer" }] })); });
+  const result = await cli.run([kind, "show", "synthetic-invalid"]);
+  expect(result.data.error.message).toContain("synthetic-invalid");
+  expect(result.output).not.toContain("private-response-sentinel");
+  expect(result.output).not.toContain("Check the selected region and credentials");
+});
+
 test("event list defaults to 50 compact rows and the profile SaaS in a 24-hour window", async () => {
   const records = Array.from({ length: 51 }, (_, index) => ({ ...eventPage.responseData[0], eventId: `synthetic-event-${index}` }));
   let body: any;
