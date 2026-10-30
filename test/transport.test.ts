@@ -9,6 +9,20 @@ import { localFixture } from "./support/local-cli.js";
 
 const page = JSON.parse(readFileSync(new URL("./fixtures/search-page.json", import.meta.url), "utf8"));
 const cleanups: (() => unknown | Promise<unknown>)[] = [];
+test.each([
+  { body: "<html>private-content-sentinel</html>", contentType: "text/html; charset=utf-8", type: "undefined" },
+  { body: '{"responseData":"private-content-sentinel"}', contentType: "application/json", type: "object" },
+])("CLI reports safe response diagnostics for $contentType", async ({ body, contentType, type }) => {
+  const { f, transport } = await setup((request, response) => {
+    if (request.url === "/auth/external") response.end('{"token":"synthetic-token"}');
+    else { response.writeHead(200, { "content-type": contentType }); response.end(body); }
+  });
+  let output = "";
+  await main(["email", "search"], { credentials: f.context, transport, stdout: { write: (chunk) => { output += chunk; } } });
+  expect(process.exitCode).toBe(1);
+  expect(decode(output)).toMatchObject({ error: { code: "RESPONSE_INVALID", status: 200, contentType: contentType.split(";")[0], shape: expect.arrayContaining([{ path: "$", type }]) } });
+  expect(output).not.toMatch(/private-content-sentinel|synthetic-token|synthetic-secret|<html>/);
+});
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); process.exitCode = 0; });
 async function setup(handler: Parameters<typeof fakeGateway>[0], timing: { now?: () => number; wait?: (milliseconds: number) => Promise<unknown> } = {}, trusted = true) {
   const f = localFixture();

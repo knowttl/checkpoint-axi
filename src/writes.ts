@@ -133,9 +133,9 @@ export async function coordinateWrite(args: {
       throw error;
     }
     record({ ...meta, kind: "outcome", outcome: "OUTCOME_UNKNOWN" });
-    return fail("OUTCOME_UNKNOWN", "Action outcome is unknown; never replay automatically", [
+    throw Object.assign(new AxiError("Action outcome is unknown; never replay automatically", "OUTCOME_UNKNOWN", [
       `Audit ID: ${auditId}`, "Inspect the write journal and read back every target before deciding what to do next",
-    ]);
+    ]), { cause: error });
   }
   finally { authorizations.delete(authorization); }
   record({ ...meta, kind: "outcome", outcome: "accepted" });

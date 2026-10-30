@@ -7,6 +7,7 @@ import type { SelectedProfile } from "./profiles.js";
 import type { SecretRedactor } from "./redact.js";
 import { consumeWriteAuthorization, type WriteAuthorization } from "./writes.js";
 import { responseInvalid } from "./response-invalid.js";
+import type { ResponseDiagnostics } from "./response-diagnostics.js";
 
 export const READ_LIMITS = { requests: 10, rows: 1_000, milliseconds: 60_000, bytes: 8 * 1024 * 1024 } as const;
 export const DOWNLOAD_LIMIT = 50 * 1024 * 1024;
@@ -21,7 +22,7 @@ export type ReadRequest =
   | { path: `/event/${string}` | `/task/${string}`; body?: never }
   | { path: ExceptionPath; body?: never };
 export type Page = { records: unknown[]; dataIsArray: boolean; scrollId?: string; total?: number };
-type Dependencies = { agent?: Agent; now?: () => number; wait?: (milliseconds: number) => Promise<unknown> };
+type Dependencies = { agent?: Agent; now?: () => number; wait?: (milliseconds: number) => Promise<unknown>; diagnostics?: ResponseDiagnostics };
 const failure = (code: string, message: string) => new AxiError(message, code, ["Check the selected region and credentials; run checkpoint-axi doctor"]);
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -121,8 +122,16 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
           if (binary) return resolve({ status, value: Buffer.concat(chunks), sha256: typeof response.headers["x-av-sha256"] === "string" ? response.headers["x-av-sha256"] : undefined });
           const json = Buffer.concat(chunks).toString("utf8");
           if (allowEmpty && status === 204 && !json) return resolve({ status, value: null });
-          try { resolve({ status, value: JSON.parse(json) as unknown }); }
-          catch { reject(responseInvalid("API returned invalid JSON", json, [[]])); }
+          const headers = new Headers(typeof response.headers["content-type"] === "string" ? { "content-type": response.headers["content-type"] } : {});
+          let value: unknown;
+          try { value = JSON.parse(json) as unknown; }
+          catch {
+            dependencies.diagnostics?.record(status, headers, undefined);
+            reject(responseInvalid("API returned invalid JSON", undefined, [[]]));
+            return;
+          }
+          dependencies.diagnostics?.record(status, headers, value);
+          resolve({ status, value });
         });
       });
       const timer = setTimeout(() => req.destroy(failure("TIME_BUDGET", "Read time budget exhausted")), remaining);
@@ -220,10 +229,10 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
       } }, token);
       if (response.status < 200 || response.status >= 300) throw new Error("Action response requires reconciliation");
       return decodePage(response.value);
-    } catch {
-      throw new AxiError("Email action outcome is unknown; never replay automatically", "OUTCOME_UNKNOWN", [
+    } catch (cause) {
+      throw Object.assign(new AxiError("Email action outcome is unknown; never replay automatically", "OUTCOME_UNKNOWN", [
         "Inspect the write journal and read back every target before deciding what to do next",
-      ]);
+      ]), { cause });
     }
   }
   // Closed event-action route; authorization cannot be reused or supplied by argv.

@@ -46,7 +46,9 @@ See [downloads](downloads.md) for private file output.
 The vendor PDF describes `entitySecurityResults` as an array in its prose/table (pages 11 and 14), while its JSON examples use an object.
 Both forms are accepted; search uses `combinedVerdict` from the object or the first array entry containing one, and reports `verdict: null` when none is available.
 Null or missing `entityActionState` within `entityInfo` is rendered as `unactioned` in search and detail.
-`RESPONSE_INVALID` diagnostics for these reads name failing JSON paths and received types, including `missing`, without response values.
+`RESPONSE_INVALID` diagnostics include HTTP status, bounded content type, a bounded redacted shape and failing JSON paths with received types (`undefined` for missing fields), without response values or validator messages.
+Arrays are represented by their first element using `[*]`; unsafe keys become `<key>` and truncation is explicit.
+Check API compatibility using these diagnostics before retrying; changing credentials does not repair a response contract mismatch.
 Non-identifier path keys appear as `<key>`.
 The reported unfiltered-search and spam-detail failures identified null action states; synthetic clean and spam fixtures exercise that shape offline.
 

@@ -111,9 +111,9 @@ test.each([
 });
 
 test.each([
-  { command: "search", array: true, prefix: "$.responseData[0]" },
-  { command: "show", array: true, prefix: "$.responseData[0]" },
-  { command: "show", array: false, prefix: "$.responseData" },
+  { command: "search", array: true, prefix: '$["responseData"][*]' },
+  { command: "show", array: true, prefix: '$["responseData"][*]' },
+  { command: "show", array: false, prefix: '$["responseData"]' },
 ])("$command names invalid field paths and types without response values (array: $array)", async ({ command, array, prefix }) => {
   const record = structuredClone(fixture.responseData[0]);
   record.entityInfo.entityActionState = 42;
@@ -122,8 +122,10 @@ test.each([
   const result = await cli.run(["email", command, ...(command === "show" ? ["synthetic-email-1"] : [])]);
   expect(result.code).toBe(1);
   expect(result.data.error.code).toBe("RESPONSE_INVALID");
-  expect(result.data.error.message).toContain(`${prefix}.entityInfo.entityActionState: number`);
-  expect(result.data.error.message).toContain(`${prefix}.entityPayload.subject: object`);
+  expect(result.data.error.issues).toEqual(expect.arrayContaining([
+    { path: `${prefix}["entityInfo"]["entityActionState"]`, received: "number", expected: "unknown" },
+    { path: `${prefix}["entityPayload"]["subject"]`, received: "object", expected: "unknown" },
+  ]));
   expect(result.output).not.toMatch(/sender@example\.test|private-response-sentinel/);
 });
 

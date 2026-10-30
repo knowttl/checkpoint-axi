@@ -35,6 +35,7 @@ Doctor explicitly authenticates and checks one email search page over the past 2
 It reports region, SaaS and pass/fail per check without tenant data; a failed check exits 1.
 Use --saas to override the profile SaaS for doctor, email search or event list; the default is office365_emails.
 AUTH_SHAPE_UNVERIFIED requires commissioning of the undocumented token response shape (guide page 8).
+RESPONSE_INVALID reports HTTP status, bounded content type, redacted shape and issue paths without values or validator messages; use them to check API compatibility before retrying.
 Tokens stay in memory; verified TLS and the fixed region map are mandatory.
 Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
 Both are bounded by 8 MiB of JSON and 60 seconds including auth and read retries; binary downloads have a separate 50 MiB cap per response.

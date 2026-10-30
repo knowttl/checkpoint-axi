@@ -245,6 +245,21 @@ test.each(["disconnect", "invalid-json", "missing-task", "mismatched-target"])("
   expect(cli.journal()[1].outcome).toBe("OUTCOME_UNKNOWN");
 });
 
+test("an HTML action acknowledgement preserves safe diagnostics and reconciliation", async () => {
+  const cli = await setup((request, response) => {
+    if (request.url?.includes("/search/entity/")) return response.end(JSON.stringify(email));
+    response.writeHead(200, { "content-type": "text/html; private=synthetic-secret-sentinel" });
+    response.end("<html>private-content-sentinel synthetic-token-sentinel</html>");
+  });
+  const result = await cli.run(["restore", ...execute]);
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "OUTCOME_UNKNOWN", status: 200, contentType: "text/html", shape: [{ path: "$", type: "undefined" }] });
+  expect(result.data.help[0]).toMatch(/^Audit ID:/);
+  expect(result.output).not.toMatch(/private-content-sentinel|synthetic-token-sentinel|synthetic-secret-sentinel|<html>/);
+  expect(cli.requests).toHaveLength(4);
+  expect(cli.journal()[1].outcome).toBe("OUTCOME_UNKNOWN");
+});
+
 test("scope revoked during re-read aborts before sending", async () => {
   let reads = 0;
   const cli = await setup((_request, response) => {
