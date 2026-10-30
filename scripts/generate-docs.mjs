@@ -195,7 +195,8 @@ checkpoint-axi email search --limit 5 --expand --expand-limit 3 --expand-request
 checkpoint-axi event list --limit 5 --expand --fields events,count,complete,cursor,expansion
 \`\`\`
 
---fields selects top-level output keys, not nested row columns: request emails or events together with count,total,complete,reason,cursor for lists, and email,event,task or exception for details.
+--fields selects top-level output keys: request emails or events together with count,total,complete,reason,cursor for lists, and email,event,task or exception for details.
+Email search also accepts row fields id,subject,state,verdict; event list accepts id,type,state,severity, retaining pagination metadata when selecting row fields.
 Email rows contain id,subject,state,verdict; event rows contain id,type,state,severity; documented exception rows contain id,sender,subject,comment.
 TOON strings preview at 500 characters; --full expands strings after redaction, while cursors are never truncated.
 

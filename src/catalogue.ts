@@ -1,5 +1,7 @@
 import { exceptionFamilies } from "./exceptions.js";
 
+export const FILTER_OPERATORS = ["is", "contains", "startsWith", "isEmpty", "isNot", "notContains", "isNotEmpty", "greaterThan", "lessThan"] as const;
+
 export const DESCRIPTION = "Inspect Check Point Email Security through compact, guarded AXI commands";
 export const SETUP_GUIDANCE = "Run checkpoint-axi config path; configure a region, clientId and clientSecret env/file SecretRef";
 export const TASK_WAIT_GUIDANCE = "Task show reads once by default; use task show <id> --wait --timeout 30 for bounded read-only polling.\n"
@@ -21,7 +23,10 @@ export const EMAIL_PAYLOAD_ATTRIBUTES = ["subject", "fromEmail", "attachmentCoun
 export const EMAIL_FILTER_GUIDANCE = "saasAttrName is a field path, not a closed enum (guide pages 19-20). Documented examples: "
   + EMAIL_PAYLOAD_ATTRIBUTES.slice(0, 3).join(", ") + ". Other documented email payload paths (pages 15-16, 24-25): "
   + EMAIL_PAYLOAD_ATTRIBUTES.slice(3).join(", ")
-  + ". saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan. The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan. saasAttrValue is a string.";
+  + `. saasAttrOp: ${FILTER_OPERATORS.join(", ")}. The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan. saasAttrValue is a string.`;
+
+export const EVENT_STATES = ["new", "detected", "pending", "remediated", "dismissed", "exception"] as const;
+export const LIST_ROW_FIELDS = { "email search": ["id", "subject", "state", "verdict"], "event list": ["id", "type", "state", "severity"] } as const;
 
 const common = {
   config: "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
@@ -96,10 +101,12 @@ export const catalogue = {
     flags: { ...common, type: exceptionType, items: "Click-time item route instead of list route; default false" },
     examples: ["checkpoint-axi exception show phishing-block <id>", "checkpoint-axi exception show url <value> --type allow-url", "checkpoint-axi exception show click-time <id> --items --full"] },
   "event list": { description: "List security events with bounded scroll continuation (API guide pages 37-42)", flags: { ...common, ...paging, ...expansion,
+    fields: `Comma-separated row fields: ${LIST_ROW_FIELDS["event list"].join(",")}; or top-level events,count,total,complete,reason,cursor,expansion,help; default all`,
     saas: "Comma-separated SaaS overrides; default selected profile saas or office365_emails",
     "event-types": "Comma-separated event types; default unfiltered",
-    "event-states": "Comma-separated event states; default unfiltered",
-    severities: "Comma-separated severities; default unfiltered",
+    "event-states": `Comma-separated event states: ${EVENT_STATES.join(", ")}; default unfiltered`,
+    states: "Alias for --event-states; cannot combine with --event-states",
+    severities: "Nonempty comma-separated severity strings; vendor documents no fixed severity list; unrecognised severities can return an empty result; default unfiltered",
     "event-ids": "Comma-separated event IDs; default unfiltered",
     "confidence-indicator": "Confidence indicator selector; default unfiltered",
     description: "Description selector; default unfiltered",
@@ -113,6 +120,7 @@ export const catalogue = {
     "wait-requests": "Total HTTP request cap including auth and retries; default 10, range 2-10; requires --wait",
   }, examples: ["checkpoint-axi task show <id>", "checkpoint-axi task show <id> --wait --timeout 30 --fields task,wait,help", "checkpoint-axi task show <id> --full"] },
   "email search": { description: "Search emails with a bounded date window and scroll continuation (API guide pages 18-27)", flags: { ...common,
+    fields: `Comma-separated row fields: ${LIST_ROW_FIELDS["email search"].join(",")}; or top-level emails,count,total,complete,reason,cursor,expansion,help; default all`,
     saas: "SaaS override; default selected profile saas or office365_emails",
     "saas-entity": "Optional SaaS entity type selector",
     ...paging, ...expansion,

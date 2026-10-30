@@ -6,20 +6,21 @@ import type { credentialStore } from "./profiles.js";
 import { REGIONS } from "./regions.js";
 import { gateway, READ_LIMITS, type ReadRequest } from "./transport.js";
 import { responseInvalid } from "./response-invalid.js";
+import { EVENT_STATES, FILTER_OPERATORS } from "./catalogue.js";
 
 const day = 86_400_000;
 const timestamp = z.iso.datetime({ offset: true });
 const filters = z.array(z.strictObject({ saasAttrName: z.string().min(1),
-  saasAttrOp: z.enum(["is", "contains", "startsWith", "isEmpty", "isNot", "notContains", "isNotEmpty", "greaterThan", "lessThan"]),
+  saasAttrOp: z.enum(FILTER_OPERATORS),
   saasAttrValue: z.string() }));
 const continuation = z.strictObject({ version: z.literal(1), binding: z.string(), start: timestamp, end: timestamp,
   scroll: z.string().optional(), offset: z.number().int().nonnegative(), replayRisk: z.literal(true).optional() });
 // The guide's prose/table (pp.11,14) says security-result array; its JSON examples use an object.
 const securityResults = z.object({ combinedVerdict: z.unknown().optional() }).passthrough();
 // Entity schemas and SaaS-specific payloads: guide pages 11-15 and 21-24.
-const entity = z.object({ entityInfo: z.object({ entityId: z.string().min(1), entityActionState: z.string().optional() }).passthrough(),
+const entity = z.object({ entityInfo: z.object({ entityId: z.string().min(1), entityActionState: z.string().nullish().transform((value) => value ?? "unactioned") }).passthrough(),
   entityPayload: z.object({ subject: z.string().optional() }).passthrough(),
-  entitySecurityResults: z.union([securityResults, z.array(z.object({}).passthrough())]).optional(),
+  entitySecurityResults: z.union([securityResults, z.array(securityResults)]).optional(),
 }).passthrough();
 // Event and task fields: guide pages 31-32, 35-36 and 40-41.
 const event = z.object({ eventId: z.string().min(1), type: z.string(), state: z.string(), severity: z.string() }).passthrough();
@@ -56,7 +57,7 @@ export async function readCommand(name: "email search" | "email show" | "event l
     let raw: unknown;
     try { raw = JSON.parse(flags.get("--filter")!); } catch { invalid("--filter must be a JSON array of attribute filters"); }
     const parsed = filters.safeParse(raw);
-    if (!parsed.success) invalid("--filter must contain saasAttrName, a documented saasAttrOp and saasAttrValue");
+    if (!parsed.success) invalid(`--filter must contain saasAttrName, saasAttrValue and saasAttrOp from: ${FILTER_OPERATORS.join(", ")}`);
     extended = parsed.data;
   }
   let cursor: z.infer<typeof continuation> | undefined;
@@ -75,10 +76,15 @@ export async function readCommand(name: "email search" | "email show" | "event l
   if (window <= 0 || window > 31 * day) invalid("Search window must be positive and at most 31 days");
   for (const flag of ["--saas", "--saas-entity"]) if (flags.has(flag) && !flags.get(flag)!.trim()) invalid(`${flag} must not be blank`);
   const eventSelectors: Extract<ReadRequest, { path: "/event/query" }>["body"] = {};
+  if (flags.has("--states")) {
+    if (flags.has("--event-states")) invalid("Use either --states or --event-states");
+    flags.set("--event-states", flags.get("--states")!);
+  }
   for (const [flag, key] of [["event-types", "eventTypes"], ["event-states", "eventStates"], ["severities", "severities"], ["event-ids", "eventIds"], ["saas", "saas"]] as const) {
     if (!isEvent || !flags.has(`--${flag}`)) continue;
     const values = flags.get(`--${flag}`)!.split(",").map((value) => value.trim());
-    if (values.some((value) => !value)) invalid(`--${flag} must contain nonempty comma-separated values`);
+    if (values.some((value) => !value)) invalid(`--${flag} must contain nonempty comma-separated ${flag === "severities" ? "severity strings" : "values"}`);
+    if (flag === "event-states" && values.some((value) => !(EVENT_STATES as readonly string[]).includes(value))) invalid(`--event-states/--states must contain: ${EVENT_STATES.join(", ")}`);
     eventSelectors[key] = values;
   }
   for (const [flag, key] of [["confidence-indicator", "confidenceIndicator"], ["description", "description"]] as const) {
@@ -170,7 +176,9 @@ export async function readCommand(name: "email search" | "email show" | "event l
       if (isEvent) { const value = event.parse(record); return { id: value.eventId, type: value.type, state: value.state, severity: value.severity }; }
       const value = entity.parse(record);
       return { id: value.entityInfo.entityId, subject: value.entityPayload.subject ?? "",
-        state: value.entityInfo.entityActionState ?? "", verdict: Array.isArray(value.entitySecurityResults) ? null : value.entitySecurityResults?.combinedVerdict ?? null };
+        state: value.entityInfo.entityActionState, verdict: Array.isArray(value.entitySecurityResults)
+          ? value.entitySecurityResults.find((result) => result.combinedVerdict != null)?.combinedVerdict ?? null
+          : value.entitySecurityResults?.combinedVerdict ?? null };
     }));
     offset += rows.length;
     if (offset < page.records.length) { replayRisk = true; break; }

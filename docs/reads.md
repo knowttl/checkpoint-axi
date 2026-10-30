@@ -20,6 +20,7 @@ Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
 Both are bounded by 8 MiB of JSON response bytes and 60 seconds, including auth, re-exchange, read retries and delays.
 Download bodies have a separate 50 MiB cap per response within the same request/time budgets.
 Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` within that budget.
+HTTP 404 reads return `NOT_FOUND`; HTTP 422 detail reads return `VALIDATION_ERROR` and identify the requested ID without printing server response data.
 Exception reads and writes share separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
 
 ## Email reads
@@ -43,11 +44,11 @@ Cursor strings are never truncated; email text is redacted before 500-character 
 See [downloads](downloads.md) for private file output.
 
 The vendor PDF describes `entitySecurityResults` as an array in its prose/table (pages 11 and 14), while its JSON examples use an object.
-Both documented forms are accepted; detail preserves them, and search reports `verdict: null` for an array because no combined verdict object is documented there.
-Other response constraints remain unchanged.
+Both forms are accepted; search uses `combinedVerdict` from the object or the first array entry containing one, and reports `verdict: null` when none is available.
+Null or missing `entityActionState` within `entityInfo` is rendered as `unactioned` in search and detail.
 `RESPONSE_INVALID` diagnostics for these reads name failing JSON paths and received types, including `missing`, without response values.
 Non-identifier path keys appear as `<key>`.
-These diagnostics support owner commissioning; the actual failing fields behind TD-049's live unfiltered-search and spam-detail failures remain unverified.
+The reported unfiltered-search and spam-detail failures identified null action states; synthetic clean and spam fixtures exercise that shape offline.
 
 ## Event and task reads
 
@@ -70,10 +71,17 @@ Failures before any snapshot and non-budget read failures remain structured erro
 Use `--fields task,wait,help` to retain wait metadata and recovery guidance when projecting output.
 Waiting only repeats the existing task status GET; it never invokes an available action, downloads a file or resubmits the original mutation.
 Event list accepts comma-separated `--event-types`, `--event-states`, `--severities`, `--event-ids` and `--saas`, plus `--confidence-indicator` and `--description` text selectors.
+`--states` is an alias for `--event-states`; use one of these flags per command.
+States must be `new`, `detected`, `pending`, `remediated`, `dismissed` or `exception`, as defined by the vendor Swagger 1.50 `EventState` schema.
+The vendor Swagger defines severities as an array of strings with no format, min/max constraints or fixed severity list, so the CLI validates nonempty comma-separated severity strings.
+Unrecognised severities can return an empty result.
 SaaS defaults to the selected profile's value or `office365_emails`; other event selectors default to unfiltered.
 Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](reads.md#email-reads).
 Repeat all original event selectors with `--cursor`; the cursor preserves the original date window.
 Event and task text is redacted before 500-character previews; use `--full` for full strings and `--fields` to select top-level fields.
+Email search also accepts row fields `id,subject,state,verdict`; event list accepts `id,type,state,severity`.
+For example, `email search --fields id,subject` narrows each email row while retaining pagination metadata.
+Existing top-level projections such as `--fields emails,count,cursor` remain supported; mixed row and top-level selections are rejected, and errors list both valid sets.
 For writes, see [event actions](writes.md#event-actions).
 These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior require manual verification.
 
@@ -103,6 +111,7 @@ Budget and per-item failures also include a safe error `code`; raw upstream erro
 Budget exhaustion stops further detail attempts; an individual HTTP, response-validation or other read failure records that item and continues within the caps.
 List `complete`, `reason` and `cursor` still describe pagination; `complete` inside `expansion` independently describes whether every returned row was expanded.
 With `--fields`, include `expansion` alongside `emails` or `events` so omissions remain visible.
+Row field selections retain expansion metadata but omit each row's `detail`; use a top-level projection to inspect expanded payloads.
 Expansion performs no writes, actions, downloads, cross-resource pivots or task waiting.
 
 ## Exception reads

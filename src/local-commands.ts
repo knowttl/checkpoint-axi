@@ -1,7 +1,7 @@
 import { AxiError } from "axi-sdk-js";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
-import { catalogue, DESCRIPTION, help, SETUP_GUIDANCE } from "./catalogue.js";
+import { catalogue, DESCRIPTION, help, LIST_ROW_FIELDS, SETUP_GUIDANCE } from "./catalogue.js";
 import { credentialStore } from "./profiles.js";
 import { doctor } from "./doctor.js";
 import { readCommand } from "./reads.js";
@@ -53,8 +53,14 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   if (name === "task show") available.push("wait", "help");
   if (isWrite) available.splice(0, available.length, "outcome", "preview", "auditId", "tasks", "response", "responseSchema", "help");
   if (isDownload) available.splice(0, available.length, "path", "size", "sha256");
-  const fields = flags.get("--fields")?.split(",") ?? available;
-  if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
+  const rowFields: readonly string[] = name === "email search" || name === "event list" ? LIST_ROW_FIELDS[name] : [];
+  const requested = flags.get("--fields")?.split(",") ?? available;
+  const columns = requested.filter((field) => rowFields.includes(field));
+  if (requested.some((field) => !available.includes(field) && !rowFields.includes(field)) || new Set(requested).size !== requested.length
+    || (columns.length > 0 && columns.length !== requested.length)) {
+    usage(`Invalid --fields; valid top-level fields: ${available.join(",")}${rowFields.length ? `; valid row fields: ${rowFields.join(",")}` : ""}`);
+  }
+  const fields = columns.length ? available : requested;
   const config = flags.get("--config");
   let result: Record<string, unknown>;
   if (isDownload) result = await downloadCommand(name, entityId, attachmentId, flags, store, transport);
@@ -83,6 +89,10 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     result = { bin: executable.startsWith(`${home}/`) ? `~${executable.slice(home.length)}` : executable,
       description: DESCRIPTION, status, profiles: listed.profiles, count: listed.count,
       help: [SETUP_GUIDANCE, "Run checkpoint-axi auth status to validate local credentials", "Run checkpoint-axi profile list to inspect configured profiles"] };
+  }
+  if (columns.length) {
+    const key = name === "event list" ? "events" : "emails";
+    result[key] = (result[key] as Record<string, unknown>[]).map((row) => Object.fromEntries(columns.map((field) => [field, row[field]])));
   }
   let truncated = false;
   const preview = (value: unknown): unknown => {

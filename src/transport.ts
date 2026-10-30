@@ -167,6 +167,11 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
       }
       if (response.status === 401) throw failure("AUTH_FAILED", "API rejected authentication after one re-exchange");
       if (response.status === 429) throw failure("RATE_LIMITED", "API rate limit remains after two read retries");
+      if (response.status === 404) throw new AxiError("Requested resource was not found", "NOT_FOUND", ["Check the requested ID"]);
+      if (response.status === 422 && query.body === undefined) {
+        const id = decodeURIComponent(query.path.slice(query.path.lastIndexOf("/") + 1));
+        throw new AxiError(`API rejected requested ID ${id} (HTTP 422)`, "VALIDATION_ERROR", ["Check the requested ID and its format"]);
+      }
       if (response.status < 200 || response.status >= 300) throw failure("HTTP_ERROR", `Regional API returned HTTP ${response.status}`);
       return decodePage(response.value, /^\/(sectools|sectool-exceptions)\//.test(query.path));
     }
