@@ -129,7 +129,7 @@ Structured errors and suggestions are on stdout; follow the code and suggestion 
 | AUTH_FAILED | Check region and secret source; the CLI already attempts one token re-exchange after API rejection. |
 | AUTH_SHAPE_UNVERIFIED / ENDPOINT_UNVERIFIED | Contract is undocumented; request owner commissioning, never guess a route or token shape. |
 | NOT_FOUND | No matching detail record; verify the ID and profile using a list read. |
-| RESPONSE_INVALID | API contract mismatch; inspect HTTP status, contentType, bounded redacted shape and issue paths before retrying. Values and validator messages are never reported. |
+| RESPONSE_INVALID | Check API compatibility using the [transport diagnostics](reads.md#doctor-and-transport) before retrying. |
 | API_ERROR / HTTP_ERROR | Upstream failure; verify service/profile before retrying. |
 | RATE_LIMITED | Two read retries exhausted; defer work instead of immediate repeated calls. |
 | REQUEST_BUDGET / TIME_BUDGET / RESPONSE_TOO_LARGE | Reduce date window or limit; inspect incomplete results and continuation before another bounded read. |

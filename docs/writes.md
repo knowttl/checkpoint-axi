@@ -5,6 +5,7 @@
 Read-only by default.
 [Profile permissions](configuration.md) grant exact operations; previews also require these permissions.
 See [downloads](downloads.md) for the separate local file opt-in and [the safety design](design.md#read-write-and-download-safety) for journal invariants.
+Parsing or response-validation failures retain the [transport diagnostics](reads.md#doctor-and-transport), including when wrapped as `OUTCOME_UNKNOWN`; reconcile uncertain outcomes before any further action.
 
 ## Email writes
 
@@ -37,7 +38,6 @@ Successful submission returns `outcome: accepted`, `auditId` and per-entity `tas
 Use `checkpoint-axi task show <taskId>` to inspect execution; submission does not establish that an email was changed.
 Action requests never retry, including on 401 or 429, and never follow redirects.
 A disconnected, invalid, incomplete or otherwise unsuccessful acknowledgement returns `OUTCOME_UNKNOWN` with its audit ID.
-If parsing or response validation failed, the error retains bounded response diagnostics without values or validator messages; reconcile the outcome before any further action.
 Read back every target and reconcile the journal before any further action; never replay automatically.
 Write preflights, authentication and the action share the [transport limits](reads.md#doctor-and-transport); read retries also consume that budget.
 Automated write verification is offline and synthetic; live action behavior, auth shape and token lifetime require manual verification.
