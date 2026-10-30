@@ -260,9 +260,10 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
     await spaceException(path);
     checkScopeBeforeSend();
     const response = await send(`/app/hec-api/v1.0${path}`, action === "remove" ? undefined : { requestData: data }, token, action === "update" ? "PUT" : "POST");
-    if (response.status < 200 || response.status >= 300 || !object(response.value) || !object(response.value.responseEnvelope)
+    if (response.status < 200 || response.status >= 300) throw failure("OUTCOME_UNKNOWN", "Exception write acknowledgement requires reconciliation; never replay automatically");
+    if (!object(response.value) || !object(response.value.responseEnvelope)
       || ![0, "0", 200, "200", ...(action === "remove" ? [204, "204"] : [])].includes(response.value.responseEnvelope.responseCode as number | string)) {
-      throw failure("OUTCOME_UNKNOWN", "Exception write acknowledgement requires reconciliation; never replay automatically");
+      throw responseInvalid("Invalid exception write acknowledgement", response.value, [["responseEnvelope"]]);
     }
   }
   // Guide pp.84-99,102-127: closed routes; request bodies distinguish shared POSTs.
@@ -288,9 +289,10 @@ export function gateway(profile: SelectedProfile, credentials: { clientId: strin
     checkScopeBeforeSend();
     const response = await send(`/app/hec-api/v1.0${path}`, kind === "click-time" && action === "remove" ? undefined : { requestData: data },
       token, action === "update" ? "PUT" : "POST", true);
-    if (response.status < 200 || response.status >= 300 || object(response.value) && Object.hasOwn(response.value, "responseEnvelope")
+    if (response.status < 200 || response.status >= 300) throw failure("OUTCOME_UNKNOWN", "Exception write status requires reconciliation; never replay automatically");
+    if (object(response.value) && Object.hasOwn(response.value, "responseEnvelope")
       && (!object(response.value.responseEnvelope) || ![0, "0", 200, "200", 204, "204"].includes(response.value.responseEnvelope.responseCode as string | number))) {
-      throw failure("OUTCOME_UNKNOWN", "Exception write status requires reconciliation; never replay automatically");
+      throw responseInvalid("Invalid exception write status", response.value, [["responseEnvelope"]]);
     }
     return response.value;
   }

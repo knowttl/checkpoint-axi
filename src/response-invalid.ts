@@ -18,3 +18,9 @@ export class ResponseInvalidError extends AxiError {
 export function responseInvalid(message: string, value: unknown, paths: readonly (readonly PropertyKey[])[]): AxiError {
   return new ResponseInvalidError(message, value, paths);
 }
+
+export function responseErrorDetails(error: unknown, diagnostics?: ResponseDiagnostics): Record<string, unknown> {
+  if (!(error instanceof AxiError)) return {};
+  if (error.code === "OUTCOME_UNKNOWN" && error.cause) return responseErrorDetails(error.cause, diagnostics);
+  return { ...diagnostics?.forError(error), ...(error instanceof ResponseInvalidError ? error.diagnostics : {}) };
+}

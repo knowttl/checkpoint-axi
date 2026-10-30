@@ -6,6 +6,7 @@ import { z } from "zod";
 import { credentialStore } from "./profiles.js";
 import { gateway } from "./transport.js";
 import { protectWindowsFile, windowsAcl } from "./private-file.js";
+import { responseInvalid } from "./response-invalid.js";
 
 type Store = ReturnType<typeof credentialStore>;
 type Flags = Map<string, string>;
@@ -178,7 +179,8 @@ export async function eventWriteCommand(flags: Flags, store: Store, transport?: 
       const page = await session.read({ path: `/event/${encodeURIComponent(id)}` });
       const parsed = event.safeParse(page.records[0]);
       if (page.records.length !== 1 || !parsed.success || parsed.data.eventId !== id) {
-        return fail("RESPONSE_INVALID", "Event preflight returned a missing, mismatched or malformed event");
+        throw responseInvalid("Event preflight returned a missing, mismatched or malformed event",
+          { responseData: page.dataIsArray ? page.records : page.records[0] }, [["responseData"]]);
       }
       const value = parsed.data;
       const offered = value.availableEventActions.filter((item) => item.actionName === action);
@@ -198,7 +200,8 @@ export async function eventWriteCommand(flags: Flags, store: Store, transport?: 
     if (!parsed.success || parsed.data.length !== targets.length || new Set(parsed.data.map((item) => item.eventId)).size !== targets.length
       || parsed.data.some((item) => !targets.includes(item.eventId) || entities.get(item.eventId) !== item.entityId
         || store.redactor.text(String(item.taskId)) !== String(item.taskId))) {
-      return fail("OUTCOME_UNKNOWN", "Action response did not identify a task for every event target");
+      throw responseInvalid("Action response did not identify a task for every event target",
+        { responseData: page.dataIsArray ? page.records : page.records[0] }, [["responseData"]]);
     }
     return { tasks: parsed.data.map((item) => ({ ...item, outcome: "accepted" })), help: ["Run checkpoint-axi task show <taskId> to inspect asynchronous execution; accepted does not mean completed"] };
   } });
@@ -232,7 +235,8 @@ export async function emailWriteCommand(name: "email quarantine" | "email restor
       const parsed = entity.safeParse(page.records[0]);
       if (page.records.length !== 1 || !parsed.success || parsed.data.entityInfo.entityId !== id
         || !["office365_emails_email", "google_mail_email"].includes(parsed.data.entityInfo.saasEntityType)) {
-        return fail("RESPONSE_INVALID", "Email preflight returned a missing, mismatched or malformed entity");
+        throw responseInvalid("Email preflight returned a missing, mismatched or malformed entity",
+          { responseData: page.dataIsArray ? page.records : page.records[0] }, [["responseData"]]);
       }
       const value = parsed.data;
       const noop = action === "quarantine" ? value.entityPayload.isQuarantined === true
@@ -248,7 +252,8 @@ export async function emailWriteCommand(name: "email quarantine" | "email restor
     const parsed = z.array(task).safeParse(page.records);
     if (!parsed.success || parsed.data.length !== pending.length || new Set(parsed.data.map((item) => item.entityId)).size !== pending.length
       || parsed.data.some((item) => !pending.includes(item.entityId) || store.redactor.text(String(item.taskId)) !== String(item.taskId))) {
-      return fail("OUTCOME_UNKNOWN", "Action response did not identify a task for every target");
+      throw responseInvalid("Action response did not identify a task for every target",
+        { responseData: page.dataIsArray ? page.records : page.records[0] }, [["responseData"]]);
     }
     return { tasks: parsed.data.map((item) => ({ ...item, outcome: "accepted" })), help: ["Run checkpoint-axi task show <taskId> to inspect asynchronous execution; accepted does not mean completed"] };
   } });

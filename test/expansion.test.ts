@@ -136,6 +136,26 @@ for (const kind of ["email", "event"] as const) {
     expect(result.output).not.toContain("synthetic-secret-sentinel");
   });
 
+  test.each([
+    { body: "<html>private-content-sentinel</html>", contentType: "text/html", type: "undefined" },
+    { body: '{"responseData":"private-content-sentinel"}', contentType: "application/json", type: "object" },
+  ])(`${kind} expansion preserves per-item diagnostics for $contentType`, async ({ body, contentType, type }) => {
+    const page = JSON.parse(readFileSync(new URL(`./fixtures/${kind}-page.json`, import.meta.url), "utf8"));
+    const cli = await setup(kind, 1, (request, response) => {
+      if (request.method !== "GET") return response.end(JSON.stringify(page));
+      response.writeHead(200, { "content-type": contentType });
+      response.end(body);
+    });
+    const result = await cli.run(["--expand"]);
+    expect(result.code).toBe(0);
+    expect(result.data[rows]).toHaveLength(1);
+    expect(result.data.expansion).toMatchObject({ expanded: 0, complete: false, notExpanded: [
+      { code: "RESPONSE_INVALID", status: 200, contentType, shape: expect.arrayContaining([{ path: "$", type }]) },
+    ] });
+    expect(result.output).not.toMatch(/private-content-sentinel|synthetic-secret-sentinel|synthetic-token-sentinel|<html>/);
+    expect(cli.requests).toHaveLength(3);
+  });
+
   test(`${kind} all retains pagination and rows when listing consumes the expansion request budget`, async () => {
     const page = JSON.parse(readFileSync(new URL(`./fixtures/${kind}-page.json`, import.meta.url), "utf8"));
     let index = 0;

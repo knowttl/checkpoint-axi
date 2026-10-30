@@ -65,6 +65,26 @@ test("401 permits exactly one token re-exchange per run", async () => {
   expect({ exchanges, reads }).toEqual({ exchanges: 2, reads: 2 });
 });
 
+test.each([
+  { check: "auth", body: "<html>private-content-sentinel</html>", contentType: "text/html", type: "undefined" },
+  { check: "read", body: "<html>private-content-sentinel</html>", contentType: "text/html", type: "undefined" },
+  { check: "read", body: '{"responseData":"private-content-sentinel"}', contentType: "application/json", type: "object" },
+])("doctor preserves $check response diagnostics for $contentType", async ({ check, body, contentType, type }) => {
+  const { f, transport } = await setup((request, response) => {
+    if (check === "read" && request.url === "/auth/external") return response.end('{"token":"synthetic-token"}');
+    response.writeHead(200, { "content-type": contentType });
+    response.end(body);
+  });
+  let output = "";
+  await main(["doctor"], { credentials: f.context, transport, stdout: { write: (chunk) => { output += chunk; } } });
+  expect(process.exitCode).toBe(1);
+  expect(decode(output)).toMatchObject({ pass: false, checks: expect.arrayContaining([
+    expect.objectContaining({ check, pass: false, code: "RESPONSE_INVALID", status: 200, contentType,
+      shape: expect.arrayContaining([{ path: "$", type }]) }),
+  ]) });
+  expect(output).not.toMatch(/private-content-sentinel|synthetic-token|synthetic-secret|<html>/);
+});
+
 test.each([{}, { token: "one", access_token: "two" }, { token: "invalid\ntoken" }, { token: "valid", accessToken: "" }])("doctor reports unverified auth shape without echoing it: %j", async (shape) => {
   let requests = 0;
   const { f, transport } = await setup((_request, response) => { requests++; response.end(JSON.stringify(shape)); });
