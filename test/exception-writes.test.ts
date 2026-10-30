@@ -215,6 +215,21 @@ test("documented remove envelope code 204 is accepted", async () => {
   expect((await cli.run([...cli.args, "--execute", "--confirm", "exception.spam-allow.remove synthetic-exception-1"])).data.outcome).toBe("accepted");
 });
 
+test.each([null, {}, { responseCode: "private-content-sentinel" }])("invalid exception acknowledgement retains diagnostics: %j", async (responseEnvelope) => {
+  const cli = await setup("spam-allow", "update", (request, response) => {
+    if (request.method === "GET") return response.end(JSON.stringify(existing));
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify({ responseEnvelope }));
+  });
+  const result = await cli.run([...cli.args, "--execute", "--confirm", "exception.spam-allow.update synthetic-exception-1"]);
+  expect(result.data.error).toMatchObject({ code: "OUTCOME_UNKNOWN", status: 200, contentType: "application/json",
+    issuePaths: ['$["responseEnvelope"]'], shape: expect.arrayContaining([{ path: "$", type: "object" }]) });
+  expect(result.data.help[0]).toMatch(/^Audit ID:/);
+  expect(result.output).not.toMatch(/private-content-sentinel|synthetic-secret-sentinel|synthetic-token-sentinel/);
+  expect(cli.requests).toHaveLength(4);
+  expect(cli.journal()[1].outcome).toBe("OUTCOME_UNKNOWN");
+});
+
 test("exception transport refuses forged coordinator authorization before authentication", async () => {
   const cli = await setup();
   const store = credentialStore(cli.local.context), profile = store.select(store.load().config);

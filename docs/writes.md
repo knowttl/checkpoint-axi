@@ -5,6 +5,7 @@
 Read-only by default.
 [Profile permissions](configuration.md) grant exact operations; previews also require these permissions.
 See [downloads](downloads.md) for the separate local file opt-in and [the safety design](design.md#read-write-and-download-safety) for journal invariants.
+Parsing or response-validation failures retain the [transport diagnostics](reads.md#doctor-and-transport), including when wrapped as `OUTCOME_UNKNOWN`; reconcile uncertain outcomes before any further action.
 
 ## Email writes
 

@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { credentialStore } from "./profiles.js";
 import { REGIONS } from "./regions.js";
 import { gateway, READ_LIMITS, type ReadRequest } from "./transport.js";
-import { responseInvalid } from "./response-invalid.js";
+import { responseErrorDetails, responseInvalid } from "./response-invalid.js";
 import { EVENT_STATES, FILTER_OPERATORS } from "./catalogue.js";
 
 const day = 86_400_000;
@@ -208,7 +208,7 @@ export async function readCommand(name: "email search" | "email show" | "event l
         if (["REQUEST_BUDGET", "TIME_BUDGET", "RESPONSE_TOO_LARGE"].includes(code)) {
           stopped = { reason: code === "REQUEST_BUDGET" ? "request-cap-reached" : "budget-exhausted", code };
           notExpanded.push({ id: itemId, ...stopped });
-        } else notExpanded.push({ id: itemId, reason: "per-item-error", code });
+        } else notExpanded.push({ id: itemId, reason: "per-item-error", code, ...responseErrorDetails(error, transport?.diagnostics) });
       }
     }
     expansion = { expanded, attempted, itemLimit: Number(expandLimitText), requestLimit: Number(expandRequestsText), complete: notExpanded.length === 0, notExpanded };

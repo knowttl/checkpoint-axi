@@ -69,6 +69,7 @@ Doctor explicitly authenticates and checks one email search page over the past 2
 It reports region, SaaS and pass/fail per check without tenant data; a failed check exits 1.
 Use --saas to override the profile SaaS for doctor, email search or event list; the default is office365_emails.
 AUTH_SHAPE_UNVERIFIED requires commissioning of the undocumented token response shape (guide page 8).
+For RESPONSE_INVALID recovery and diagnostic fields, see [transport guidance](../../docs/reads.md#doctor-and-transport).
 Tokens stay in memory; verified TLS and the fixed region map are mandatory.
 Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
 Both are bounded by 8 MiB of JSON and 60 seconds including auth and read retries; binary downloads have a separate 50 MiB cap per response.
@@ -227,7 +228,8 @@ Structured errors and suggestions are on stdout; follow the code and suggestion 
 | AUTH_FAILED | Check region and secret source; the CLI already attempts one token re-exchange after API rejection. |
 | AUTH_SHAPE_UNVERIFIED / ENDPOINT_UNVERIFIED | Contract is undocumented; request owner commissioning, never guess a route or token shape. |
 | NOT_FOUND | No matching detail record; verify the ID and profile using a list read. |
-| RESPONSE_INVALID / API_ERROR / HTTP_ERROR | Unexpected response or upstream failure; inspect the redacted error and verify service/profile before retrying. |
+| RESPONSE_INVALID | Check API compatibility using the [transport diagnostics](reads.md#doctor-and-transport) before retrying. |
+| API_ERROR / HTTP_ERROR | Upstream failure; verify service/profile before retrying. |
 | RATE_LIMITED | Two read retries exhausted; defer work instead of immediate repeated calls. |
 | REQUEST_BUDGET / TIME_BUDGET / RESPONSE_TOO_LARGE | Reduce date window or limit; inspect incomplete results and continuation before another bounded read. |
 | WRITES_DISABLED / DOWNLOADS_DISABLED | Operation is outside profile permissions; do not loosen permissions during investigation. |

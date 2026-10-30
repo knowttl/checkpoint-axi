@@ -23,6 +23,13 @@ Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` 
 HTTP 404 reads return `NOT_FOUND`; HTTP 422 detail reads return `VALIDATION_ERROR` and identify the requested ID without printing server response data.
 Exception reads and writes share separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
 
+`RESPONSE_INVALID` diagnostics include HTTP `status`, bounded `contentType`, a bounded redacted `shape`, and `issues` with failing JSON paths and received types, without response values or validator messages.
+Unavailable status or content type is `null`; content type omits parameters.
+Missing fields and bodies that could not be parsed as JSON have received type `undefined`.
+Array shapes inspect only the first element and use `[*]` paths; keys outside the conservative identifier policy become `<key>`, and truncation is explicit.
+These fields appear on the CLI `error` or the failing doctor check.
+Check API compatibility using these diagnostics before retrying; changing credentials does not repair a response contract mismatch.
+
 ## Email reads
 
 `checkpoint-axi email search` reads compact ID, subject, action state and combined verdict rows (guide pages 18-27).
@@ -46,8 +53,6 @@ See [downloads](downloads.md) for private file output.
 The vendor PDF describes `entitySecurityResults` as an array in its prose/table (pages 11 and 14), while its JSON examples use an object.
 Both forms are accepted; search uses `combinedVerdict` from the object or the first array entry containing one, and reports `verdict: null` when none is available.
 Null or missing `entityActionState` within `entityInfo` is rendered as `unactioned` in search and detail.
-`RESPONSE_INVALID` diagnostics for these reads name failing JSON paths and received types, including `missing`, without response values.
-Non-identifier path keys appear as `<key>`.
 The reported unfiltered-search and spam-detail failures identified null action states; synthetic clean and spam fixtures exercise that shape offline.
 
 ## Event and task reads
@@ -108,6 +113,7 @@ Every list row and successful detail survives expansion failures; partial expans
 The `expansion` object reports `expanded`, `attempted`, `itemLimit`, `requestLimit`, `complete` and `notExpanded`.
 Each `notExpanded` entry includes the item `id` and `reason`: `item-cap-reached`, `request-cap-reached`, `budget-exhausted` or `per-item-error`.
 Budget and per-item failures also include a safe error `code`; raw upstream error bodies are never printed.
+Response-validation failures retain the [transport diagnostics](#doctor-and-transport) on the affected `notExpanded` entry.
 Budget exhaustion stops further detail attempts; an individual HTTP, response-validation or other read failure records that item and continues within the caps.
 List `complete`, `reason` and `cursor` still describe pagination; `complete` inside `expansion` independently describes whether every returned row was expanded.
 With `--fields`, include `expansion` alongside `emails` or `events` so omissions remain visible.

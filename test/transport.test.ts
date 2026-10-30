@@ -9,6 +9,20 @@ import { localFixture } from "./support/local-cli.js";
 
 const page = JSON.parse(readFileSync(new URL("./fixtures/search-page.json", import.meta.url), "utf8"));
 const cleanups: (() => unknown | Promise<unknown>)[] = [];
+test.each([
+  { body: "<html>private-content-sentinel</html>", contentType: "text/html; charset=utf-8", type: "undefined" },
+  { body: '{"responseData":"private-content-sentinel"}', contentType: "application/json", type: "object" },
+])("CLI reports safe response diagnostics for $contentType", async ({ body, contentType, type }) => {
+  const { f, transport } = await setup((request, response) => {
+    if (request.url === "/auth/external") response.end('{"token":"synthetic-token"}');
+    else { response.writeHead(200, { "content-type": contentType }); response.end(body); }
+  });
+  let output = "";
+  await main(["email", "search"], { credentials: f.context, transport, stdout: { write: (chunk) => { output += chunk; } } });
+  expect(process.exitCode).toBe(1);
+  expect(decode(output)).toMatchObject({ error: { code: "RESPONSE_INVALID", status: 200, contentType: contentType.split(";")[0], shape: expect.arrayContaining([{ path: "$", type }]) } });
+  expect(output).not.toMatch(/private-content-sentinel|synthetic-token|synthetic-secret|<html>/);
+});
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); process.exitCode = 0; });
 async function setup(handler: Parameters<typeof fakeGateway>[0], timing: { now?: () => number; wait?: (milliseconds: number) => Promise<unknown> } = {}, trusted = true) {
   const f = localFixture();
@@ -49,6 +63,26 @@ test("401 permits exactly one token re-exchange per run", async () => {
   });
   await expect(api.read({ path: "/search/query", body: { entityFilter: { saas: "synthetic", startDate: "2026-01-01T00:00:00Z", endDate: "2026-01-02T00:00:00Z" } } })).rejects.toMatchObject({ code: "AUTH_FAILED" });
   expect({ exchanges, reads }).toEqual({ exchanges: 2, reads: 2 });
+});
+
+test.each([
+  { check: "auth", body: "<html>private-content-sentinel</html>", contentType: "text/html", type: "undefined" },
+  { check: "read", body: "<html>private-content-sentinel</html>", contentType: "text/html", type: "undefined" },
+  { check: "read", body: '{"responseData":"private-content-sentinel"}', contentType: "application/json", type: "object" },
+])("doctor preserves $check response diagnostics for $contentType", async ({ check, body, contentType, type }) => {
+  const { f, transport } = await setup((request, response) => {
+    if (check === "read" && request.url === "/auth/external") return response.end('{"token":"synthetic-token"}');
+    response.writeHead(200, { "content-type": contentType });
+    response.end(body);
+  });
+  let output = "";
+  await main(["doctor"], { credentials: f.context, transport, stdout: { write: (chunk) => { output += chunk; } } });
+  expect(process.exitCode).toBe(1);
+  expect(decode(output)).toMatchObject({ pass: false, checks: expect.arrayContaining([
+    expect.objectContaining({ check, pass: false, code: "RESPONSE_INVALID", status: 200, contentType,
+      shape: expect.arrayContaining([{ path: "$", type }]) }),
+  ]) });
+  expect(output).not.toMatch(/private-content-sentinel|synthetic-token|synthetic-secret|<html>/);
 });
 
 test.each([{}, { token: "one", access_token: "two" }, { token: "invalid\ntoken" }, { token: "valid", accessToken: "" }])("doctor reports unverified auth shape without echoing it: %j", async (shape) => {

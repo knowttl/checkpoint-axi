@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { responseInvalid } from "../src/response-invalid.js";
+import { responseInvalid, ResponseInvalidError } from "../src/response-invalid.js";
 
 test("validation diagnostics mask tenant keys and never include their values", () => {
   const response = { responseData: [{ payload: { "sender@example.test": "private-content-sentinel", "line\nbreak": false, valid_key: [] } }] };
@@ -9,6 +9,13 @@ test("validation diagnostics mask tenant keys and never include their values", (
     ["responseData", 0, "payload", "valid_key"],
     ["responseData", 0, "entityInfo"],
   ]);
-  expect(error.message).toBe("Invalid response ($.responseData[0].payload.<key>: string; $.responseData[0].payload.<key>: boolean; $.responseData[0].payload.valid_key: array; $.responseData[0].entityInfo: missing)");
+  expect(error.message).toBe("Invalid response");
+  expect((error as ResponseInvalidError).diagnostics).toMatchObject({ issues: [
+    { path: '$["responseData"][*]["payload"]["<key>"]', received: "string" },
+    { path: '$["responseData"][*]["payload"]["<key>"]', received: "boolean" },
+    { path: '$["responseData"][*]["payload"]["valid_key"]', received: "array" },
+    { path: '$["responseData"][*]["entityInfo"]', received: "undefined" },
+  ] });
+  expect(JSON.stringify(error)).not.toMatch(/sender@example|line\\nbreak|private-content-sentinel/);
   expect(error.code).toBe("RESPONSE_INVALID");
 });

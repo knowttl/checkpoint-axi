@@ -1,6 +1,7 @@
 import { AxiError } from "axi-sdk-js";
 import type { credentialStore } from "./profiles.js";
 import { gateway } from "./transport.js";
+import { responseErrorDetails } from "./response-invalid.js";
 
 export async function doctor(store: ReturnType<typeof credentialStore>, config?: string, selected?: string, override?: string, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
   store.readOnly();
@@ -20,7 +21,7 @@ export async function doctor(store: ReturnType<typeof credentialStore>, config?:
       }
       checks.push({ check, pass: true });
     } catch (error) {
-      checks.push({ check, pass: false, code: error instanceof AxiError ? error.code : "API_ERROR" });
+      checks.push({ check, pass: false, code: error instanceof AxiError ? error.code : "API_ERROR", ...responseErrorDetails(error, transport?.diagnostics) });
       if (check === "auth") checks.push({ check: "read", pass: false, code: "AUTH_NOT_PASSED" });
       break;
     }

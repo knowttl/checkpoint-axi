@@ -245,6 +245,38 @@ test.each(["disconnect", "invalid-json", "missing-task", "mismatched-target"])("
   expect(cli.journal()[1].outcome).toBe("OUTCOME_UNKNOWN");
 });
 
+test("an HTML action acknowledgement preserves safe diagnostics and reconciliation", async () => {
+  const cli = await setup((request, response) => {
+    if (request.url?.includes("/search/entity/")) return response.end(JSON.stringify(email));
+    response.writeHead(200, { "content-type": "text/html; private=synthetic-secret-sentinel" });
+    response.end("<html>private-content-sentinel synthetic-token-sentinel</html>");
+  });
+  const result = await cli.run(["restore", ...execute]);
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "OUTCOME_UNKNOWN", status: 200, contentType: "text/html", shape: [{ path: "$", type: "undefined" }] });
+  expect(result.data.help[0]).toMatch(/^Audit ID:/);
+  expect(result.output).not.toMatch(/private-content-sentinel|synthetic-token-sentinel|synthetic-secret-sentinel|<html>/);
+  expect(cli.requests).toHaveLength(4);
+  expect(cli.journal()[1].outcome).toBe("OUTCOME_UNKNOWN");
+});
+
+test.each([true, false])("a missing email task ID preserves diagnostics (array: %s)", async (array) => {
+  const cli = await setup((request, response) => {
+    if (request.url?.includes("/search/entity/")) return response.end(JSON.stringify(email));
+    response.writeHead(200, { "content-type": "application/json" });
+    const record = { entityId: "synthetic-email-1", privateField: "private-content-sentinel" };
+    response.end(JSON.stringify({ ...acknowledgement, responseData: array ? [record] : record }));
+  });
+  const result = await cli.run(["restore", ...execute]);
+  expect(result.data.error).toMatchObject({ code: "OUTCOME_UNKNOWN", status: 200, contentType: "application/json",
+    shape: expect.arrayContaining([{ path: "$[\"responseData\"]", type: array ? "array" : "object", ...(array ? { count: 1 } : {}) }]) });
+  expect(result.data.help[0]).toMatch(/^Audit ID:/);
+  expect(result.output).toContain("read back every target");
+  expect(result.output).not.toMatch(/private-content-sentinel|synthetic-secret-sentinel|synthetic-token-sentinel/);
+  expect(cli.requests).toHaveLength(4);
+  expect(cli.journal()[1].outcome).toBe("OUTCOME_UNKNOWN");
+});
+
 test("scope revoked during re-read aborts before sending", async () => {
   let reads = 0;
   const cli = await setup((_request, response) => {
