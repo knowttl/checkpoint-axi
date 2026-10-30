@@ -26,7 +26,7 @@ The test command builds and typechecks, then selects tests affected by changes s
 It always runs the packaged CLI, profile safety, network guard and identifier guard baseline.
 Changes to package metadata, lockfile, TypeScript/Vitest config, scripts, test support, fixtures, inventory or no-mistakes configuration run the full suite.
 The selector fails if it cannot compute the merge base or find the safety baseline.
-Test real outcomes through the CLI or module's public interface; mock only network, clock, randomness or platform ACL boundaries.
+Follow the canonical Test quality rules in [AGENTS.md](AGENTS.md#tests-and-public-repository-hygiene).
 Repeat tests that touch async work or I/O after fixing failures.
 Never use a live tenant, customer identifiers or real credentials.
 Hosted pull-request test CI is deliberately absent; `.no-mistakes.yaml` declares `no_ci: true`.

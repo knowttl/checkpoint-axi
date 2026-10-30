@@ -23,6 +23,12 @@ document:
     scripts/test-changes.mjs owns affected-test selection and the fixed safety baseline.
 review:
   path_instructions:
+    - path: "**"
+      instructions: |
+        Test quality: apply the "Test quality" rules in AGENTS.md to every added or changed test.
+        Flag each violation as a finding naming the rule number, the test file:line and the evidence.
+        Respect the listed exemptions.
+        Never ask for a test to be written first or only to raise coverage.
     - path: "src/**/profile*"
       instructions: |
         Reject unknown fields and partial env profiles. File profiles never mix env fields.
