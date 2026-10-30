@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/knowttl/checkpoint-axi/compare/v0.1.3...v0.1.4) (2026-10-30)
+
+
+### Bug Fixes
+
+* correct email reads, list projections, and validation errors ([#26](https://github.com/knowttl/checkpoint-axi/issues/26)) ([0109524](https://github.com/knowttl/checkpoint-axi/commit/0109524a5b6476ff306c57749033e75dce1b016f))
+
 ## [0.1.3](https://github.com/knowttl/checkpoint-axi/compare/v0.1.2...v0.1.3) (2026-10-29)
 
 
