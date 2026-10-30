@@ -20,6 +20,7 @@ Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
 Both are bounded by 8 MiB of JSON response bytes and 60 seconds, including auth, re-exchange, read retries and delays.
 Download bodies have a separate 50 MiB cap per response within the same request/time budgets.
 Reads retry HTTP 429 at most twice, honoring numeric or HTTP-date `Retry-After` within that budget.
+HTTP 404 reads return `NOT_FOUND`; HTTP 422 detail reads return `VALIDATION_ERROR` and identify the requested ID without printing server response data.
 Exception reads and writes share separate 1 request/second Anti-Phishing and 10 requests/second other-exception spacers.
 
 ## Email reads
@@ -74,7 +75,6 @@ Event list accepts comma-separated `--event-types`, `--event-states`, `--severit
 States must be `new`, `detected`, `pending`, `remediated`, `dismissed` or `exception`, as defined by the vendor Swagger 1.50 `EventState` schema.
 The vendor Swagger defines severities as an array of strings with no format, min/max constraints or fixed severity list, so the CLI validates nonempty comma-separated severity strings.
 Unrecognised severities can return an empty result.
-HTTP 404 reads return `NOT_FOUND`; HTTP 422 detail reads identify the requested ID without printing server response data.
 SaaS defaults to the selected profile's value or `office365_emails`; other event selectors default to unfiltered.
 Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](reads.md#email-reads).
 Repeat all original event selectors with `--cursor`; the cursor preserves the original date window.
@@ -111,6 +111,7 @@ Budget and per-item failures also include a safe error `code`; raw upstream erro
 Budget exhaustion stops further detail attempts; an individual HTTP, response-validation or other read failure records that item and continues within the caps.
 List `complete`, `reason` and `cursor` still describe pagination; `complete` inside `expansion` independently describes whether every returned row was expanded.
 With `--fields`, include `expansion` alongside `emails` or `events` so omissions remain visible.
+Row field selections retain expansion metadata but omit each row's `detail`; use a top-level projection to inspect expanded payloads.
 Expansion performs no writes, actions, downloads, cross-resource pivots or task waiting.
 
 ## Exception reads
