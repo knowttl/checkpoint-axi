@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/knowttl/checkpoint-axi/compare/v0.1.4...v0.1.5) (2026-10-30)
+
+
+### Bug Fixes
+
+* preserve safe diagnostics for invalid upstream responses ([#28](https://github.com/knowttl/checkpoint-axi/issues/28)) ([e667ebb](https://github.com/knowttl/checkpoint-axi/commit/e667ebbf5e845e55a255d5ede205993d501591a4))
+
 ## [0.1.4](https://github.com/knowttl/checkpoint-axi/compare/v0.1.3...v0.1.4) (2026-10-30)
 
 
