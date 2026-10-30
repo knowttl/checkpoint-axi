@@ -83,7 +83,7 @@ export async function readCommand(name: "email search" | "email show" | "event l
   for (const [flag, key] of [["event-types", "eventTypes"], ["event-states", "eventStates"], ["severities", "severities"], ["event-ids", "eventIds"], ["saas", "saas"]] as const) {
     if (!isEvent || !flags.has(`--${flag}`)) continue;
     const values = flags.get(`--${flag}`)!.split(",").map((value) => value.trim());
-    if (values.some((value) => !value)) invalid(`--${flag} must contain nonempty comma-separated values`);
+    if (values.some((value) => !value)) invalid(`--${flag} must contain nonempty comma-separated ${flag === "severities" ? "severity strings" : "values"}`);
     if (flag === "event-states" && values.some((value) => !(EVENT_STATES as readonly string[]).includes(value))) invalid(`--event-states/--states must contain: ${EVENT_STATES.join(", ")}`);
     eventSelectors[key] = values;
   }

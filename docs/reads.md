@@ -72,7 +72,8 @@ Waiting only repeats the existing task status GET; it never invokes an available
 Event list accepts comma-separated `--event-types`, `--event-states`, `--severities`, `--event-ids` and `--saas`, plus `--confidence-indicator` and `--description` text selectors.
 `--states` is an alias for `--event-states`; use one of these flags per command.
 States must be `new`, `detected`, `pending`, `remediated`, `dismissed` or `exception`, as defined by the vendor Swagger 1.50 `EventState` schema.
-The Swagger defines severities as strings without an enum, so only nonempty comma-separated values are validated.
+The vendor Swagger defines severities as an array of strings with no format, min/max constraints or fixed severity list, so the CLI validates nonempty comma-separated severity strings.
+Unrecognised severities can return an empty result.
 HTTP 404 reads return `NOT_FOUND`; HTTP 422 detail reads identify the requested ID without printing server response data.
 SaaS defaults to the selected profile's value or `office365_emails`; other event selectors default to unfiltered.
 Event list uses the same date windows, row and transport budgets, bound continuation and honest page replay flags as [email search](reads.md#email-reads).
@@ -80,7 +81,7 @@ Repeat all original event selectors with `--cursor`; the cursor preserves the or
 Event and task text is redacted before 500-character previews; use `--full` for full strings and `--fields` to select top-level fields.
 Email search also accepts row fields `id,subject,state,verdict`; event list accepts `id,type,state,severity`.
 For example, `email search --fields id,subject` narrows each email row while retaining pagination metadata.
-Existing top-level projections such as `--fields emails,count,cursor` remain supported; unknown fields list both valid sets.
+Existing top-level projections such as `--fields emails,count,cursor` remain supported; mixed row and top-level selections are rejected, and errors list both valid sets.
 For writes, see [event actions](writes.md#event-actions).
 These reads are verified offline with synthetic fixtures; authentication, token lifetime and live API behavior require manual verification.
 

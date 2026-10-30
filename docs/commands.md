@@ -270,7 +270,7 @@ List security events with bounded scroll continuation (API guide pages 37-42)
 | `--event-types` | Comma-separated event types; default unfiltered |
 | `--event-states` | Comma-separated event states: new, detected, pending, remediated, dismissed, exception; default unfiltered |
 | `--states` | Alias for --event-states; cannot combine with --event-states |
-| `--severities` | Comma-separated severity strings; vendor Swagger defines no closed value set; default unfiltered |
+| `--severities` | Nonempty comma-separated severity strings; vendor documents no fixed severity list; unrecognised severities can return an empty result; default unfiltered |
 | `--event-ids` | Comma-separated event IDs; default unfiltered |
 | `--confidence-indicator` | Confidence indicator selector; default unfiltered |
 | `--description` | Description selector; default unfiltered |

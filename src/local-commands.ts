@@ -56,7 +56,8 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   const rowFields: readonly string[] = name === "email search" || name === "event list" ? LIST_ROW_FIELDS[name] : [];
   const requested = flags.get("--fields")?.split(",") ?? available;
   const columns = requested.filter((field) => rowFields.includes(field));
-  if (requested.some((field) => !available.includes(field) && !rowFields.includes(field)) || new Set(requested).size !== requested.length) {
+  if (requested.some((field) => !available.includes(field) && !rowFields.includes(field)) || new Set(requested).size !== requested.length
+    || (columns.length > 0 && columns.length !== requested.length)) {
     usage(`Invalid --fields; valid top-level fields: ${available.join(",")}${rowFields.length ? `; valid row fields: ${rowFields.join(",")}` : ""}`);
   }
   const fields = columns.length ? available : requested;
