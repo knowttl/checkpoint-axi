@@ -157,6 +157,41 @@ test("packaged setup honors active agent configuration directories", async () =>
   for (const name of [".claude", ".codex", ".config"]) expect(existsSync(join(home, name))).toBe(false);
 });
 
+test.each([".claude/settings.json", ".codex/hooks.json"])("setup preserves marker mentions and repairs only launchers in %s", (relative) => {
+  const home = mkdtempSync(join(directory, "hook-ownership-"));
+  const target = join(home, relative);
+  const unrelated = [
+    { type: "command", command: "notify", args: ["checkpoint-axi-hook status"] },
+    { type: "command", command: "notify", args: ["/synthetic/checkpoint-axi-hook.js"] },
+    { type: "command", command: "notify checkpoint-axi-hook" },
+    { type: "command", command: process.execPath, args: ["notify.js", "/synthetic/checkpoint-axi-hook.js"] },
+    { type: "command", command: "/synthetic/checkpoint-axi-hook/notify", args: [] },
+    { type: "command", command: process.execPath, args: ["/synthetic/other-checkpoint-axi-hook.js"] },
+  ];
+  const owned = [
+    { type: "command", command: "checkpoint-axi-hook" },
+    { type: "command", command: process.execPath, args: ["/synthetic/old/checkpoint-axi-hook.js"] },
+    { type: "command", command: "'/synthetic/Agent'\\''s $Tools/checkpoint-axi-hook.js'" },
+    { type: "command", command: "'/synthetic/node' '/synthetic/Agent'\\''s $Tools/checkpoint-axi-hook.js'" },
+    { type: "command", command: '& \'C:\\Program Files\\nodejs\\node.exe\' \'C:\\Agent\'\'s $Tools\\checkpoint-axi-hook.js\'' },
+    { type: "command", command: '"C:\\Agent\'s $Tools\\checkpoint-axi-hook.js"' },
+  ];
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, JSON.stringify({ hooks: { session_start: [...unrelated, ...owned], SessionStart: [{ hooks: [...unrelated, ...owned] }] } }));
+  const env = { HOME: home, USERPROFILE: home };
+  const result = cli(["setup", "hooks"], env);
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const saved = JSON.parse(readFileSync(target, "utf8"));
+  expect(saved.hooks.session_start).toEqual(unrelated);
+  expect(saved.hooks.SessionStart[0].hooks).toHaveLength(unrelated.length + owned.length);
+  expect(saved.hooks.SessionStart[0].hooks.slice(0, unrelated.length)).toEqual(unrelated);
+  for (const hook of saved.hooks.SessionStart[0].hooks.slice(unrelated.length)) {
+    const executed = executeHook(hook, env);
+    expect(executed.status, executed.stdout + executed.stderr).toBe(0);
+    expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
+  }
+});
+
 test.each([".claude/settings.json", ".codex/hooks.json", ".codex/config.toml", ".config/opencode/plugins/axi-checkpoint-axi-hook.js"])("packaged setup reports a failed target without replacing it: %s", (relative) => {
   const home = mkdtempSync(join(directory, "failed-hook-"));
   const target = join(home, relative);

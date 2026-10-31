@@ -62,10 +62,8 @@ export function setupHooks(): Record<string, unknown> {
             || settings.hooks.SessionStart.some((group: unknown) => !group || typeof group !== "object" || !("hooks" in group) || !Array.isArray(group.hooks)))) throw new Error("Invalid hook settings");
         const updated = structuredClone(settings);
         updated.hooks ??= {};
-        const managed = (hook: Hook | null) => hook?.command?.includes(marker)
-          || hook?.args?.some((arg) => arg.includes(marker));
         if (Array.isArray(updated.hooks.session_start)) {
-          updated.hooks.session_start = updated.hooks.session_start.filter((hook: Hook | null) => !managed(hook));
+          updated.hooks.session_start = updated.hooks.session_start.filter((hook: Hook | null) => !isManagedHook(hook));
           if (!updated.hooks.session_start.length) delete updated.hooks.session_start;
         }
         const groups: { matcher?: string; hooks: Hook[] }[] = updated.hooks.SessionStart ??= [];
@@ -74,7 +72,7 @@ export function setupHooks(): Record<string, unknown> {
         let found = false;
         for (const group of groups) {
           for (let index = 0; index < group.hooks.length; index++) {
-            if (!managed(group.hooks[index]!)) continue;
+            if (!isManagedHook(group.hooks[index]!)) continue;
             group.hooks[index] = hook;
             found = true;
           }
@@ -91,6 +89,27 @@ export function setupHooks(): Record<string, unknown> {
   if (failures.length) throw new AxiError("Some session integrations could not be installed or repaired", "HOOK_SETUP_FAILED",
     failures.map((path) => `Check permissions and syntax at ${path}; rerun checkpoint-axi setup hooks (other integrations may already be installed)`));
   return { status: "installed", integrations };
+}
+
+function isManagedHook(hook: Hook | null): boolean {
+  if (typeof hook?.command !== "string") return false;
+  let words = [hook.command, hook.args?.[0] ?? ""];
+  if (hook.args === undefined) {
+    const powershell = hook.command.trimStart().startsWith("& ");
+    let remaining = hook.command.trimStart().replace(/^&\s+/, "");
+    words = [];
+    for (let index = 0; index < 2; index++) {
+      const token = /^('(?:[^']|'\\''|'')*'|"[^"]*"|[^\s'";&|]+)(?:\s+|$)/.exec(remaining);
+      if (!token) break;
+      const word = token[1]!;
+      words.push(word.startsWith("'") ? word.slice(1, -1).replaceAll(powershell ? "''" : "'\\''", "'")
+        : word.startsWith('"') ? word.slice(1, -1) : word);
+      remaining = remaining.slice(token[0].length);
+    }
+  }
+  const hookPath = /(?:^|[\\/])checkpoint-axi-hook(?:\.js)?$/;
+  return hookPath.test(words[0] ?? "")
+    || /(?:^|[\\/])node(?:\.exe)?$/.test(words[0] ?? "") && hookPath.test(words[1] ?? "");
 }
 
 function openCodePlugin(executable: string, args: string[]): string {
