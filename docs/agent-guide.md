@@ -14,13 +14,14 @@ Live API contracts remain uncommissioned; fixture success does not establish liv
 Local readiness checks make no API calls:
 
 ```sh
-checkpoint-axi
+checkpoint-axi home --offline
 checkpoint-axi config path
 checkpoint-axi profile list
 checkpoint-axi auth status
 ```
 
-The home view shows local profile context, config path shows effective paths, profile list lists file profiles, and auth status validates the selected secret source locally.
+The offline home view shows local profile context, config path shows effective paths, profile list lists file profiles, and auth status validates the selected secret source locally.
+For configured home reads, resource bounds and empty/error/partial states, see [configuration](configuration.md).
 Add --profile <name> or --config <absolute-path> to select provisioned configuration; profile list ignores --profile.
 Doctor authenticates and checks one search page without printing email data:
 

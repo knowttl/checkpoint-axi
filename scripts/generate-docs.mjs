@@ -19,8 +19,9 @@ const groupGuides = {
   email: ["Search, inspect and download emails; preview or request quarantine/restore", "Read / gated write / local file write", "reads.md#email-reads"],
   event: ["Inspect events and request available name-only actions", "Read / gated write", "writes.md#event-actions"],
   exception: ["Inspect eight kinds; preview or request supported rule changes", "Read / gated write", "writes.md"],
-  home: ["Show local profile context without resolving secrets", "Local read", "configuration.md"],
+  home: ["Show bounded live email and event context, or offline profile status", "API read / local read", "configuration.md"],
   profile: ["List named file profiles", "Local read", "configuration.md"],
+  setup: ["Opt-in installation or repair of session integrations", "Local configuration write", "configuration.md"],
   task: ["Inspect asynchronous action status once or with bounded read-only waiting", "Read", "reads.md#event-and-task-reads"],
 };
 const groups = [...new Set(commands.map(([name]) => name.split(" ")[0]))];
@@ -28,7 +29,7 @@ const groupTable = ["| Group | Purpose | Access | Reference |", "|---|---|---|--
   const [purpose, access, link] = groupGuides[name];
   return `| ${name} | ${purpose} | ${access} | [Guide](docs/${link}) |`;
 })].join("\n");
-const reference = `${generated}\n\n# Command reference\n\n${DESCRIPTION}.\nEmail, event, task and exception reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.\nRun each command with \`--help\` for concise help.\n\n${commands.map(([name]) => `[${name}](#${name.replaceAll(" ", "-")})`).join(" | ")}\n\n${table("checkpoint-axi")}\n\n${commands.map(([name, entry]) => [
+const reference = `${generated}\n\n# Command reference\n\n${DESCRIPTION}.\nConfigured home, email, event, task and exception reads use the regional API; doctor checks authentication and one bounded search, while offline status commands stay local.\nRun each command with \`--help\` for concise help.\n\n${commands.map(([name]) => `[${name}](#${name.replaceAll(" ", "-")})`).join(" | ")}\n\n${table("checkpoint-axi")}\n\n${commands.map(([name, entry]) => [
   `## ${name}`, "", entry.description, "", "| Flag | Meaning |", "|---|---|",
   ...Object.entries(entry.flags).map(([flag, meaning]) => `| \`--${flag}\` | ${escape(meaning)} |`), "",
   "```sh", ...entry.examples, "```", "",
@@ -60,8 +61,9 @@ ${invocation(catalogue["email search"].examples[0])}
 ${invocation(catalogue["email show"].examples[0])}
 \`\`\`
 
-Home and the optional checkpoint-axi-hook binary read local context only.
-Configure a session hook only on explicit request; it is never installed automatically.
+Home and the optional checkpoint-axi-hook binary show bounded live email and event context when configured.
+Use home --offline for local profile status without resolving secrets or calling the API.
+Run setup hooks only on explicit request to install or repair Claude Code, Codex and OpenCode session integrations.
 Use the hook for ambient discovery or this skill for on-demand discovery.
 Local auth status validates secret availability and file security without authenticating to the API.
 Do not infer API access from a local pass.
@@ -131,13 +133,14 @@ Live API contracts remain uncommissioned; fixture success does not establish liv
 Local readiness checks make no API calls:
 
 \`\`\`sh
-checkpoint-axi
+checkpoint-axi home --offline
 checkpoint-axi config path
 checkpoint-axi profile list
 checkpoint-axi auth status
 \`\`\`
 
-The home view shows local profile context, config path shows effective paths, profile list lists file profiles, and auth status validates the selected secret source locally.
+The offline home view shows local profile context, config path shows effective paths, profile list lists file profiles, and auth status validates the selected secret source locally.
+For configured home reads, resource bounds and empty/error/partial states, see [configuration](configuration.md).
 Add --profile <name> or --config <absolute-path> to select provisioned configuration; profile list ignores --profile.
 Doctor authenticates and checks one search page without printing email data:
 

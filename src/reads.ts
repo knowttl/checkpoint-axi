@@ -32,7 +32,7 @@ const task = z.object({ id: z.union([z.string().min(1), z.number().int().nonnega
 const invalid = (message: string): never => { throw new AxiError(message, "VALIDATION_ERROR", ["Run checkpoint-axi <email search|email show|event list|event show|task show> --help"]); };
 
 export async function readCommand(name: "email search" | "email show" | "event list" | "event show" | "task show", id: string | undefined, flags: Map<string, string>,
-  store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
+  store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3], budget = { requests: 10, milliseconds: 60_000 }): Promise<Record<string, unknown>> {
   const isEvent = name.startsWith("event ");
   if (name.endsWith(" show") && (!id || !/^[A-Za-z0-9_-]+$/.test(id))) invalid(`${name} requires one ID containing letters, digits, underscores or hyphens`);
   const waiting = flags.has("--wait");
@@ -103,10 +103,10 @@ export async function readCommand(name: "email search" | "email show" | "event l
   if (cursor && cursor.binding !== binding) invalid("Cursor does not match this profile, region or search selectors; repeat the original selectors");
   const now = transport?.now ?? Date.now;
   const wait = transport?.wait ?? delay;
-  const timeout = waiting ? Number(timeoutText) * 1_000 : READ_LIMITS.milliseconds;
+  const timeout = waiting ? Number(timeoutText) * 1_000 : budget.milliseconds;
   const deadline = now() + timeout;
   const api = gateway(profile, store.credentials(profile, true), store.redactor, transport, false,
-    Number(waiting ? waitRequestsText : expandRequestsText), timeout);
+    Math.min(budget.requests, Number(waiting ? waitRequestsText : expandRequestsText)), timeout);
   async function detail(id: string) {
     if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new AxiError("Invalid detail ID", "RESPONSE_INVALID", []);
     const kind = name.split(" ")[0]!;

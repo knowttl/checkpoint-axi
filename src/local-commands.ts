@@ -9,6 +9,7 @@ import { exceptionCommand } from "./exceptions.js";
 import { emailWriteCommand, eventWriteCommand } from "./writes.js";
 import { exceptionWriteCommand } from "./write-exceptions.js";
 import { downloadCommand } from "./downloads.js";
+import { setupHooks } from "./setup-hooks.js";
 import type { gateway } from "./transport.js";
 
 export async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: Parameters<typeof gateway>[3]): Promise<Record<string, unknown>> {
@@ -36,7 +37,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--expand", "--wait", "--items", "--specific", "--original", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--offline", "--full", "--all", "--expand", "--wait", "--items", "--specific", "--original", "--execute", "--dry-run"].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -48,7 +49,7 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     : name === "email search" || name === "event list" ? [name === "event list" ? "events" : "emails", "count", "total", "complete", "reason", "cursor", "expansion", "help"] : name.endsWith(" show") ? [name.split(" ")[0]!]
     : name === "doctor" ? ["region", "saas", "checks", "pass", "help"] : name === "auth status" ? ["profile", "source", "region", "origin", "saas", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
-      : ["bin", "description", "status", "profiles", "count", "help"];
+      : name === "setup hooks" ? ["status", "integrations"] : ["bin", "description", "status", "profiles", "count", "emails", "events", "help"];
   const isWrite = name === "email quarantine" || name === "email restore" || name === "event action" || isExceptionWrite;
   if (name === "task show") available.push("wait", "help");
   if (isWrite) available.splice(0, available.length, "outcome", "preview", "auditId", "tasks", "response", "responseSchema", "help");
@@ -63,7 +64,8 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
   const fields = columns.length ? available : requested;
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (isDownload) result = await downloadCommand(name, entityId, attachmentId, flags, store, transport);
+  if (name === "setup hooks") result = setupHooks();
+  else if (isDownload) result = await downloadCommand(name, entityId, attachmentId, flags, store, transport);
   else if (name === "exception create" || name === "exception update" || name === "exception remove" || name === "exception remove-items" || name === "exception clear") result = await exceptionWriteCommand(name, kind, entityId, flags, store, transport);
   else if (name === "event action") result = await eventWriteCommand(flags, store, transport);
   else if (name === "email quarantine" || name === "email restore") result = await emailWriteCommand(name, flags, store, transport);
@@ -78,9 +80,11 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     // Selection errors matter when context exists, but a new installation has a useful empty home.
     const loaded = store.load(config);
     let status = "not configured";
+    let configured = false;
     try {
       const selected = store.select(loaded.config, flags.get("--profile"));
       status = `configured: ${selected.name} (${selected.region}); not verified with the API`;
+      configured = true;
     } catch (error) {
       if (!(error instanceof AxiError) || error.code !== "PROFILE_REQUIRED") throw error;
     }
@@ -89,6 +93,32 @@ export async function localCommand(argv: string[], store: ReturnType<typeof cred
     result = { bin: executable.startsWith(`${home}/`) ? `~${executable.slice(home.length)}` : executable,
       description: DESCRIPTION, status, profiles: listed.profiles, count: listed.count,
       help: [SETUP_GUIDANCE, "Run checkpoint-axi auth status to validate local credentials", "Run checkpoint-axi profile list to inspect configured profiles"] };
+    if (configured && !flags.has("--offline")) {
+      const end = new Date().toISOString();
+      const start = new Date(Date.parse(end) - 86_400_000).toISOString();
+      let succeeded = 0;
+      let firstError: AxiError | undefined;
+      for (const [key, command] of [["emails", "email search"], ["events", "event list"]] as const) {
+        const bounded = new Map(flags);
+        bounded.set("--limit", "5");
+        bounded.set("--start-date", start);
+        bounded.set("--end-date", end);
+        try {
+          const summary = await readCommand(command, undefined, bounded, store, transport, { requests: 2, milliseconds: 10_000 });
+          result[key] = { rows: summary[key], count: summary.count, total: summary.total, complete: summary.complete,
+            status: summary.count === 0 ? "empty" : "ok" };
+          succeeded++;
+        } catch (error) {
+          if (!(error instanceof AxiError)) throw error;
+          firstError ??= error;
+          result[key] = { status: "error", code: error.code };
+        }
+      }
+      if (!succeeded) throw firstError;
+      result.status = succeeded === 2 ? "live" : "partial";
+      result.help = ["Run checkpoint-axi email search for the full bounded search", "Run checkpoint-axi event list for the full bounded search",
+        "Run checkpoint-axi home --offline for local status without API calls"];
+    }
   }
   if (columns.length) {
     const key = name === "event list" ? "events" : "emails";

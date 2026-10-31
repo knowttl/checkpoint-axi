@@ -22,7 +22,7 @@ export function identifierViolations(text) {
   for (const [domain] of domains) {
     const host = domain.toLowerCase();
     // Source filenames and documented operation identifiers are not DNS names.
-    if (/\.(?:md|json|ts|mts|mjs|js|yaml|yml|log|pdf)$/.test(host)
+    if (/\.(?:md|json|toml|ts|mts|mjs|js|yaml|yml|log|pdf)$/.test(host)
       || /^exception\.(?:phishing-allow|phishing-block|spam-allow)\.(?:create|update|remove)$/.test(host)
       || /^exception\.anomaly\.(?:create|remove)$/.test(host)
       || /^exception\.click-time\.(?:create|update|remove|remove-items|clear)$/.test(host)

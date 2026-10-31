@@ -3,10 +3,10 @@
 # Command reference
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
-Email, event, task and exception reads use the regional API; doctor checks authentication and one bounded search, while discovery commands stay local.
+Configured home, email, event, task and exception reads use the regional API; doctor checks authentication and one bounded search, while offline status commands stay local.
 Run each command with `--help` for concise help.
 
-[attachment download](#attachment-download) | [attachment download-all](#attachment-download-all) | [auth status](#auth-status) | [config path](#config-path) | [doctor](#doctor) | [email download](#email-download) | [email quarantine](#email-quarantine) | [email restore](#email-restore) | [email search](#email-search) | [email show](#email-show) | [event action](#event-action) | [event list](#event-list) | [event show](#event-show) | [exception clear](#exception-clear) | [exception create](#exception-create) | [exception list](#exception-list) | [exception remove](#exception-remove) | [exception remove-items](#exception-remove-items) | [exception show](#exception-show) | [exception update](#exception-update) | [home](#home) | [profile list](#profile-list) | [task show](#task-show)
+[attachment download](#attachment-download) | [attachment download-all](#attachment-download-all) | [auth status](#auth-status) | [config path](#config-path) | [doctor](#doctor) | [email download](#email-download) | [email quarantine](#email-quarantine) | [email restore](#email-restore) | [email search](#email-search) | [email show](#email-show) | [event action](#event-action) | [event list](#event-list) | [event show](#event-show) | [exception clear](#exception-clear) | [exception create](#exception-create) | [exception list](#exception-list) | [exception remove](#exception-remove) | [exception remove-items](#exception-remove-items) | [exception show](#exception-show) | [exception update](#exception-update) | [home](#home) | [profile list](#profile-list) | [setup hooks](#setup-hooks) | [task show](#task-show)
 
 | Command | Purpose |
 |---|---|
@@ -30,8 +30,9 @@ Run each command with `--help` for concise help.
 | `checkpoint-axi exception remove-items` | Preview or remove 1-20 click-time items by caller-supplied IDs; existence is unverified (guide pages 97-98) |
 | `checkpoint-axi exception show` | Show an exception by kind and ID/value; anomaly refuses ENDPOINT_UNVERIFIED pending commissioning (guide pages 52-123) |
 | `checkpoint-axi exception update` | Preview or replace one exception; phishing/spam/click-time require an ID; malware/url/dlp identify it in --input without an ID; anomaly unsupported (guide pages 64-67, 78-81, 94-96, 105-107, 116-117, 126-127) |
-| `checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
+| `checkpoint-axi home` | Show up to five emails and events from the last 24 hours; --offline reads local profile status only |
 | `checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
+| `checkpoint-axi setup hooks` | Install or repair user-level Claude Code, Codex and OpenCode session integrations; explicit opt-in only |
 | `checkpoint-axi task show` | Show asynchronous task status and per-action details, optionally waiting within explicit bounds (API guide pages 30-33) |
 
 ## attachment download
@@ -446,7 +447,7 @@ checkpoint-axi exception update spam-allow <id> --input /absolute/rule.json --ex
 
 ## home
 
-Show local profile context without resolving secrets or making API calls
+Show up to five emails and events from the last 24 hours; --offline reads local profile status only
 
 | Flag | Meaning |
 |---|---|
@@ -455,10 +456,12 @@ Show local profile context without resolving secrets or making API calls
 | `--fields` | Comma-separated output fields; default all |
 | `--full` | Show full strings instead of 500-character previews; default false |
 | `--help` | Show concise command help; default false |
+| `--offline` | Local status only; never resolve secrets or contact the API; default false |
 
 ```sh
 checkpoint-axi
 checkpoint-axi home --profile example
+checkpoint-axi home --offline
 ```
 
 ## profile list
@@ -476,6 +479,19 @@ List file profiles without resolving secrets; --profile does not filter this lis
 ```sh
 checkpoint-axi profile list
 checkpoint-axi profile list --config /example/config.json
+```
+
+## setup hooks
+
+Install or repair user-level Claude Code, Codex and OpenCode session integrations; explicit opt-in only
+
+| Flag | Meaning |
+|---|---|
+| `--help` | Show command help |
+
+```sh
+checkpoint-axi setup hooks
+checkpoint-axi setup hooks --help
 ```
 
 ## task show
