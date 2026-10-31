@@ -27,7 +27,7 @@ export async function fakeGateway(handler: (request: IncomingMessage, response: 
     }
   }
   const agent = new LoopbackAgent();
-  return { agent, close: async () => {
+  return { agent, unref: () => server.unref(), close: async () => {
     agent.destroy();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     unregister();

@@ -1,5 +1,19 @@
 # Configuration
 
+Configured `home` (also no arguments) shows up to five emails and five events from the past 24 hours.
+Each resource is bounded by two HTTP requests including authentication, ten seconds and 8 MiB of JSON.
+Inspect each summary's `status`, `count`, optional `total` and `complete`; a limited page is not a full inventory.
+Empty summaries succeed; `status: partial` preserves the successful resource and reports the other's error code.
+If both resources fail, the command exits 1 with the first structured error.
+Use `home --offline` for local profile status without resolving secrets or calling the API.
+
+Run `checkpoint-axi setup hooks` only on explicit request to install or repair user-level Claude Code and Codex SessionStart hooks and an OpenCode ambient context plugin.
+Setup preserves unrelated settings, repeats without rewriting unchanged files and repairs executable paths after relocation.
+It enables Codex's shared `[features].hooks` flag.
+Failures exit 1 with `HOOK_SETUP_FAILED`, identify affected paths and may leave other integrations successfully installed; fix those paths and repeat setup.
+The integration runs `checkpoint-axi-hook`, showing the same bounded read-only home view with a 25-second hook timeout.
+No ordinary command writes agent configuration, and setup never changes profile permissions.
+
 See [environment variables and platform defaults](../README.md#configuration) for the complete variable table.
 
 `config path` reports platform paths without reading files.
@@ -8,7 +22,8 @@ State defaults to `$XDG_STATE_HOME/checkpoint-axi` (or `~/.local/state/checkpoin
 Windows ignores XDG variables.
 XDG and Windows base-directory overrides must be absolute; relative values use the platform defaults.
 If APPDATA or LOCALAPPDATA is absent or relative, the Windows defaults are `~/AppData/Roaming` and `~/AppData/Local` respectively.
-No command discovers config from the current directory or writes configuration.
+No command discovers profile configuration from the current directory or writes profile configuration.
+Only explicit `setup hooks` writes agent configuration.
 
 Create a config file with this synthetic shape and protect it from group/other writes:
 

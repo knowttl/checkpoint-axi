@@ -17,7 +17,7 @@ Live API contracts still require manual verification; offline fixtures do not es
 ## Quickstart
 
 Requires Node.js 22.12 or later.
-Install and open the local home view, which needs no credentials or network:
+Install and open the home view; a fresh installation needs no credentials or network:
 
 ```sh
 npm install --global @knowttl/checkpoint-axi
@@ -27,6 +27,8 @@ npx -y @knowttl/checkpoint-axi
 ```
 
 A fresh home view includes `status: not configured` and `count: 0`.
+Configured home shows up to five emails and events over the past 24 hours.
+Use `checkpoint-axi home --offline` for local profile status without secret resolution or API calls.
 For a read-only environment profile, supply `CHECKPOINT_AXI_CLIENT_SECRET` through your secret manager or private environment before running:
 
 ```sh
@@ -43,10 +45,13 @@ Use [file profiles](docs/configuration.md) for named credentials and write/downl
 
 ## Use with your agent
 
-`checkpoint-axi-hook` is the session entry point: configure your agent's session-start hook to run it on explicit request.
-It emits local home context, grants no permissions and makes no API calls.
-There is no automatic hook installer or `setup hooks` command.
-To remove it, delete the hook entry you added in your agent configuration.
+Run `checkpoint-axi setup hooks` on explicit request to install or repair user-level Claude Code, Codex and OpenCode session integrations.
+Repeated setup preserves unrelated settings and repairs the executable path after relocation.
+Ordinary commands never install integrations.
+`checkpoint-axi-hook` is the session entry point and emits the same bounded read-only home context.
+It grants no write permissions; configured sessions make API reads using the provisioned profile.
+To remove it, delete its SessionStart entry from `~/.claude/settings.json` and `~/.codex/hooks.json` and remove `~/.config/opencode/plugins/axi-checkpoint-axi-hook.js`.
+Codex setup enables `[features].hooks` in `~/.codex/config.toml`; leave that shared feature enabled if other integrations use it.
 
 For on-demand discovery, install the skill:
 
@@ -74,8 +79,9 @@ See [bounded detail expansion](docs/reads.md#bounded-detail-expansion) for limit
 | email | Search, inspect and download emails; preview or request quarantine/restore | Read / gated write / local file write | [Guide](docs/reads.md#email-reads) |
 | event | Inspect events and request available name-only actions | Read / gated write | [Guide](docs/writes.md#event-actions) |
 | exception | Inspect eight kinds; preview or request supported rule changes | Read / gated write | [Guide](docs/writes.md) |
-| home | Show local profile context without resolving secrets | Local read | [Guide](docs/configuration.md) |
+| home | Show bounded live email and event context, or offline profile status | API read / local read | [Guide](docs/configuration.md) |
 | profile | List named file profiles | Local read | [Guide](docs/configuration.md) |
+| setup | Opt-in installation or repair of session integrations | Local configuration write | [Guide](docs/configuration.md) |
 | task | Inspect asynchronous action status once or with bounded read-only waiting | Read | [Guide](docs/reads.md#event-and-task-reads) |
 
 Task show reads once by default; use task show <id> --wait --timeout 30 for bounded read-only polling.
@@ -114,7 +120,8 @@ See [write gates and reconciliation](docs/writes.md), [download safety](docs/dow
 
 ## Configuration
 
-No command writes configuration or discovers it from the current directory.
+Only explicit `setup hooks` writes agent configuration.
+Profile configuration is never written or discovered from the current directory.
 Use `checkpoint-axi config path` to print the effective paths.
 
 | Platform | Default config | Default state directory |

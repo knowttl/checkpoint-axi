@@ -18,7 +18,7 @@ test("auth status validates a local SecretRef without printing credential materi
   expect(result.output).not.toContain("SYNTHETIC_SECRET");
 });
 
-test.each([[], ["profile", "list"]])("local discovery does not resolve missing secret files: %j", async (...args) => {
+test.each([["home", "--offline"], ["profile", "list"]])("local discovery does not resolve missing secret files: %j", async (...args) => {
   const f = fixture();
   f.profile.profiles.example.clientSecret = { file: join(f.directory, "missing-secret") };
   f.save();
@@ -76,7 +76,7 @@ test.each([
   expect(status.code).toBe(0);
   expect(status.data).toMatchObject({ profile: "example", source, region: "eu", clientSecret: "env" });
   expect(status.output).not.toContain("synthetic-default-secret");
-  const home = await f.run(["home"]);
+  const home = await f.run(["home", "--offline"]);
   expect(home.code).toBe(0);
   expect(home.data.status).toBe("configured: example (eu); not verified with the API");
 });
