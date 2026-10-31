@@ -13,7 +13,7 @@ const publicHosts = new Set([
   "cloudinfra-gw.me.portal.checkpoint.com", "cloudinfra-gw.in.portal.checkpoint.com",
 ]);
 
-export function identifierViolations(text) {
+export function identifierViolations(text: string) {
   const violations = [];
   for (const match of text.matchAll(/\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\b/gi)) {
     if (!/^00000000-0000-4000-8000-0000000000[0-9a-f]{2}$/i.test(match[0])) violations.push("non-synthetic UUID");
@@ -36,7 +36,7 @@ export function identifierViolations(text) {
   return [...new Set(violations)];
 }
 
-function files(directory) {
+function files(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     return entry.isDirectory() ? files(path) : [path];

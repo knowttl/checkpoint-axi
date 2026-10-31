@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
-import { identifierViolations } from "../scripts/check-identifiers.mjs";
+import { identifierViolations } from "../scripts/check-identifiers.ts";
 
 test.each([
   ["customer" + ".com", "unapproved domain or internal host"],
@@ -23,6 +23,6 @@ test.each(["exception.anomaly.create", "exception.anomaly.remove", "exception.cl
 });
 
 test("documentation and fixtures contain only approved identifiers", () => {
-  const result = spawnSync(process.execPath, [fileURLToPath(new URL("../scripts/check-identifiers.mjs", import.meta.url))], { encoding: "utf8" });
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL("../scripts/check-identifiers.ts", import.meta.url))], { encoding: "utf8" });
   expect(result.status, result.stderr).toBe(0);
 });

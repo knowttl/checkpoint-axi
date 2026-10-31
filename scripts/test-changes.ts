@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-function git(args) {
+function git(args: string[]) {
   const result = spawnSync("git", args, { encoding: "utf8", cwd: root });
   if (result.error || result.status !== 0) throw new Error(`Cannot compute changed files: git ${args.join(" ")} failed`);
   return result.stdout;
@@ -24,12 +24,12 @@ try {
   console.log(`Test mode: ${full ? "full-suite" : "affected-only"}; baseline: ${baseline.join(", ")}`);
   if (process.argv.includes("--plan")) console.log(JSON.stringify({ mode: full ? "full-suite" : "affected-only", changed, baseline, vitestArgs }));
   else {
-    const guard = fileURLToPath(new URL("../test/support/deny-network.mjs", import.meta.url));
+    const guard = fileURLToPath(new URL("../test/support/deny-network.ts", import.meta.url));
     for (const [entry, ...args] of [
       ["node_modules/typescript/bin/tsc", "-p", "tsconfig.json"],
-      ["node_modules/typescript/bin/tsc", "--noEmit", "-p", "tsconfig.json"],
+      ["node_modules/typescript/bin/tsc", "--noEmit", "-p", "tsconfig.tooling.json"],
       ["node_modules/vitest/vitest.mjs", ...vitestArgs],
-    ]) {
+    ] as [string, ...string[]][]) {
       const result = spawnSync(process.execPath, [fileURLToPath(new URL(`../${entry}`, import.meta.url)), ...args], {
         cwd: root, stdio: "inherit", env: { ...process.env,
           ...(entry.includes("vitest") ? { NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${guard}`.trim() } : {}) },
@@ -39,6 +39,6 @@ try {
     }
   }
 } catch (error) {
-  console.error(error.message);
+  console.error((error as Error).message);
   process.exitCode = 1;
 }

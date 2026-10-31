@@ -9,7 +9,7 @@ Do not refactor adjacent code or hand-edit generated artifacts or changelogs.
 
 ## Verification
 
-Use Node.js 22.12 or later and pnpm through Corepack.
+Use Node.js 24 or later and pnpm through Corepack for development.
 Install dependencies with `corepack pnpm install --frozen-lockfile --ignore-scripts`, then run these checks before review:
 
 ```sh
@@ -32,7 +32,7 @@ Never use a live tenant, customer identifiers or real credentials.
 Hosted pull-request test CI is deliberately absent; `.no-mistakes.yaml` declares `no_ci: true`.
 
 After catalogue changes, build and run `docs:generate`, then `docs:check`.
-After an explicit PDF review, update the source pin and design ledger, run `spec:generate`, then `node scripts/specs.mjs --check --pdf <local-path>`.
+After an explicit PDF review, update the source pin and design ledger, run `spec:generate`, then `node scripts/specs.ts --check --pdf <local-path>`.
 Tenable commits its JSON specification snapshots; this project does not commit the Check Point PDF because redistribution permission has not been established.
 The default specification check verifies local provenance and generated inventory without fetching the PDF.
 

@@ -10,7 +10,7 @@ test.each([
   "(await import('node:net')).connect({host:'127.0.0.1',port:443})",
   "(await import('node:dgram')).createSocket('udp4').send('x',53,'127.0.0.1')",
 ])("the offline guard denies network access in subprocesses: %s", (expression) => {
-  const guard = fileURLToPath(new URL("./support/deny-network.mjs", import.meta.url));
+  const guard = fileURLToPath(new URL("./support/deny-network.ts", import.meta.url));
   const child = spawnSync(process.execPath, ["--import", guard, "--input-type=module", "-e", expression], { encoding: "utf8", timeout: 5_000 });
   expect(child.status).not.toBe(0);
   expect(child.stderr).toContain("Network access is disabled during offline tests");

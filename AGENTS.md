@@ -1,6 +1,6 @@
 # Contributing agents
 
-Use Node.js 22.12 or later and pnpm through Corepack.
+Use Node.js 24 or later and pnpm through Corepack for development.
 Run `corepack pnpm run build`, `corepack pnpm run lint`, `corepack pnpm test`, `corepack pnpm run spec:check`, `corepack pnpm run docs:check`, and `corepack pnpm run identifiers:check`.
 `.no-mistakes.yaml` separates preparation, tests and lint.
 Do not add hosted test workflows; only release publication runs on GitHub.
@@ -19,8 +19,8 @@ Writes must require operation scope, preview, exact confirmation and durable red
 ## Tests and public repository hygiene
 
 Tests use synthetic fixtures and deny external network access.
-`scripts/isolated.mjs` isolates HOME, XDG directories and agent configuration.
-`scripts/test-changes.mjs` runs affected tests plus a fixed safety baseline; shared infrastructure changes run the full suite.
+`scripts/isolated.ts` isolates HOME, XDG directories and agent configuration.
+`scripts/test-changes.ts` runs affected tests plus a fixed safety baseline; shared infrastructure changes run the full suite.
 Canonical source: knowttl/bstack revision feeccb1e6f1ae119bf4c74277c8bad328b05afe8, skills/verification/references/testing.md.
 <!-- BEGIN canonical test-quality rules -->
 **Test quality.** Write and review every test against these rules.

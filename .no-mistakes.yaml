@@ -7,9 +7,9 @@ agent_args_override:
     - model_reasoning_effort="medium"
 no_ci: true
 commands:
-  prepare: 'node scripts/isolated.mjs corepack pnpm install --frozen-lockfile --ignore-scripts --config.confirm-modules-purge=false'
+  prepare: 'node scripts/isolated.ts corepack pnpm install --frozen-lockfile --ignore-scripts --config.confirm-modules-purge=false'
   test: 'corepack pnpm test && corepack pnpm run spec:check && corepack pnpm run docs:check && corepack pnpm run identifiers:check'
-  lint: 'node scripts/isolated.mjs corepack pnpm run lint'
+  lint: 'node scripts/isolated.ts corepack pnpm run lint'
 document:
   instructions: |
     README.md owns the quickstart and command-group overview.
@@ -18,9 +18,9 @@ document:
     AGENTS.md and CONTRIBUTING.md own contribution and offline testing rules.
     docs/design.md owns security invariants, API dispositions and the twelve slices.
     inventory/specs.json pins the vendor PDF URL and byte hash; the PDF is not redistributed.
-    scripts/specs.mjs checks provenance and generates inventory/capabilities.json from the design ledger.
+    scripts/specs.ts checks provenance and generates inventory/capabilities.json from the design ledger.
     src/catalogue.ts owns executable commands. Planned inventory never enables execution.
-    scripts/test-changes.mjs owns affected-test selection and the fixed safety baseline.
+    scripts/test-changes.ts owns affected-test selection and the fixed safety baseline.
 review:
   path_instructions:
     - path: "**"

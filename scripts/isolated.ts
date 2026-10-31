@@ -7,7 +7,7 @@ const home = mkdtempSync(join(tmpdir(), "checkpoint-axi-validation-"));
 try {
   const [command, ...args] = process.argv.slice(2);
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("CHECKPOINT_AXI_")));
-  const result = spawnSync(command, args, {
+  const result = spawnSync(command!, args, {
     stdio: "inherit",
     env: { ...env, HOME: home, USERPROFILE: home, APPDATA: join(home, "AppData/Roaming"),
       CODEX_HOME: join(home, ".codex"), CLAUDE_CONFIG_DIR: join(home, ".claude"),
