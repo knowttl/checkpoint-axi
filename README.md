@@ -50,8 +50,7 @@ Repeated setup preserves unrelated settings and repairs the executable path afte
 Ordinary commands never install integrations.
 `checkpoint-axi-hook` is the session entry point and emits the same bounded read-only home context.
 It grants no write permissions; configured sessions make API reads using the provisioned profile.
-To remove it, delete its SessionStart entry from `~/.claude/settings.json` and `~/.codex/hooks.json` and remove `~/.config/opencode/plugins/axi-checkpoint-axi-hook.js`.
-Codex setup enables `[features].hooks` in `~/.codex/config.toml`; leave that shared feature enabled if other integrations use it.
+See [integration configuration](docs/configuration.md) for effective paths, launcher selection, failure recovery and removal.
 
 For on-demand discovery, install the skill:
 

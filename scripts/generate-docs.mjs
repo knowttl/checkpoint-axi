@@ -140,10 +140,7 @@ checkpoint-axi auth status
 \`\`\`
 
 The offline home view shows local profile context, config path shows effective paths, profile list lists file profiles, and auth status validates the selected secret source locally.
-Configured home without --offline reads up to five emails and five events over the past 24 hours.
-Each resource has a two-request budget including authentication, ten seconds and an 8 MiB JSON cap; no detail expansion or writes occur.
-Inspect each resource's count, total (when supplied), complete and status; empty is successful, partial preserves the successful resource and names the failed resource's error code, and failure of both resources exits 1.
-Use email search or event list to investigate beyond the home bounds.
+For configured home reads, resource bounds and empty/error/partial states, see [configuration](configuration.md).
 Add --profile <name> or --config <absolute-path> to select provisioned configuration; profile list ignores --profile.
 Doctor authenticates and checks one search page without printing email data:
 

@@ -2,6 +2,7 @@
 
 Configured `home` (also no arguments) shows up to five emails and five events from the past 24 hours.
 Each resource is bounded by two HTTP requests including authentication, ten seconds and 8 MiB of JSON.
+Home performs no detail expansion or writes; use `email search` or `event list` to investigate beyond these bounds.
 Inspect each summary's `status`, `count`, optional `total` and `complete`; a limited page is not a full inventory.
 Empty summaries succeed; `status: partial` preserves the successful resource and reports the other's error code.
 If both resources fail, the command exits 1 with the first structured error.
@@ -10,9 +11,17 @@ Use `home --offline` for local profile status without resolving secrets or calli
 Run `checkpoint-axi setup hooks` only on explicit request to install or repair user-level Claude Code and Codex SessionStart hooks and an OpenCode ambient context plugin.
 Setup preserves unrelated settings, repeats without rewriting unchanged files and repairs executable paths after relocation.
 It enables Codex's shared `[features].hooks` flag.
+Claude settings use `$CLAUDE_CONFIG_DIR/settings.json`, defaulting to `~/.claude/settings.json`.
+Codex hooks and feature configuration use `$CODEX_HOME/hooks.json` and `$CODEX_HOME/config.toml`, defaulting to `~/.codex`.
+The OpenCode plugin uses `$XDG_CONFIG_HOME/opencode/plugins/axi-checkpoint-axi-hook.js`, defaulting to `~/.config/opencode/plugins/axi-checkpoint-axi-hook.js`.
+Setup uses the portable `checkpoint-axi-hook` name on non-Windows systems only when PATH resolves it to this installation before any empty or relative PATH entry; otherwise it uses the absolute Node executable and hook script.
+Claude uses executable-plus-arguments hooks, Codex uses a shell command, and OpenCode launches the executable with separate arguments.
+Only recognized hook executable or Node script positions identify managed Claude and Codex entries; unrelated arguments mentioning the hook name are preserved.
 Failures exit 1 with `HOOK_SETUP_FAILED`, identify affected paths and may leave other integrations successfully installed; fix those paths and repeat setup.
 The integration runs `checkpoint-axi-hook`, showing the same bounded read-only home view with a 25-second hook timeout.
 No ordinary command writes agent configuration, and setup never changes profile permissions.
+To remove the integrations, delete their SessionStart entries from the Claude and Codex files and remove the OpenCode plugin file at those effective paths.
+Leave Codex's shared hooks feature enabled if other integrations use it.
 
 See [environment variables and platform defaults](../README.md#configuration) for the complete variable table.
 
@@ -48,7 +57,7 @@ Supply the secret through your environment or an absolute private file SecretRef
 Omitting `clientSecret` defaults its reference to `CHECKPOINT_AXI_CLIENT_SECRET`.
 `auth status` resolves the selected reference locally and reports only its kind (`env` or `file`); it never prints the value, client ID, variable name or secret file path.
 It confirms local readiness, not API authentication.
-`profile list` and home never resolve secret files.
+`profile list` and `home --offline` never resolve secret files.
 Supported regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; there is no origin override.
 The host-facing [credential schema](../axi-credential.schema.json) describes one strict profile.
 
@@ -63,7 +72,7 @@ An empty override uses that default.
 
 POSIX reads reject symlinks, foreign ownership, group/other-writable config and any group/other access to secret files.
 Secret file content is UTF-8 with a leading BOM and trailing whitespace removed.
-On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor` and email, event, task and exception API commands also verify a protected DACL for the current user, SYSTEM and Administrators.
+On Windows, regular files and reparse points are checked without interpreting mode bits; `auth status`, `doctor`, configured home reads and email, event, task and exception API commands also verify a protected DACL for the current user, SYSTEM and Administrators.
 
 ## SaaS and scope
 

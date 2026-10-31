@@ -7,7 +7,8 @@
 `checkpoint-axi doctor --profile <name>` explicitly contacts the selected public regional gateway.
 It authenticates and runs one page of email search over the past 24 hours for the selected SaaS.
 It reports region, SaaS and pass/fail for auth and read, without email data or credentials; a failed check exits 1.
-Home, the hook, command help and `auth status` remain offline.
+Command help and `auth status` remain offline.
+For configured home and hook reads, their smaller budgets and the explicit offline option, see [configuration](configuration.md).
 No commissioning run has been performed by the automated tests.
 
 The vendor guide does not document the token response shape or lifetime (page 8).
