@@ -1,10 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { decode } from "@toon-format/toon";
+import { parse } from "@iarna/toml";
 import { afterAll, beforeAll, expect, test } from "vitest";
 
 let directory: string;
@@ -35,8 +36,9 @@ beforeAll(() => {
 afterAll(() => { if (directory) rmSync(directory, { recursive: true, force: true }); });
 
 function cli(args: string[], env: NodeJS.ProcessEnv = {}, bin = entry) {
+  const home = env.HOME ?? directory;
   return spawnSync(process.execPath, [bin, ...args], { encoding: "utf8", cwd: directory, timeout: 10_000,
-    env: { ...process.env, HOME: directory, USERPROFILE: directory, XDG_CONFIG_HOME: join(directory, ".config"), ...env } });
+    env: { ...process.env, HOME: home, USERPROFILE: home, CODEX_HOME: "", CLAUDE_CONFIG_DIR: "", XDG_CONFIG_HOME: join(home, ".config"), ...env } });
 }
 
 test.each([
@@ -80,7 +82,7 @@ test.each([["home"], ["setup", "hooks"], ["email", "search"], ["event", "list"],
   expect(decode(result.stdout)).toMatchObject({ command: args.join(" ") });
 });
 
-test("opt-in packaged setup preserves settings, repeats without writes and repairs relocated executables", () => {
+test("opt-in packaged setup preserves settings, repeats without writes and repairs relocated executables", async () => {
   const home = join(directory, "hook-home");
   mkdirSync(join(home, ".claude"), { recursive: true });
   mkdirSync(join(home, ".codex"), { recursive: true });
@@ -115,7 +117,36 @@ test("opt-in packaged setup preserves settings, repeats without writes and repai
   cpSync(packageRoot, moved, { recursive: true });
   const repaired = cli(["setup", "hooks"], env, join(moved, "bin/checkpoint-axi.js"));
   expect(repaired.status, repaired.stdout + repaired.stderr).toBe(0);
-  for (const path of [settings, codex, plugin]) expect(readFileSync(path, "utf8")).toContain("relocated-package");
+  const hidden = `${packageRoot}-hidden`;
+  renameSync(packageRoot, hidden);
+  try {
+    for (const path of [settings, codex]) {
+      const command = JSON.parse(readFileSync(path, "utf8")).hooks.SessionStart[1].hooks[0].command;
+      const executed = spawnSync(command, { shell: true, encoding: "utf8", cwd: home, env: { ...process.env, ...env } });
+      expect(executed.status, executed.stdout + executed.stderr).toBe(0);
+      expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
+    }
+    await expectPluginContext(plugin, home);
+  } finally { renameSync(hidden, packageRoot); }
+});
+
+test("packaged setup honors active agent configuration directories", async () => {
+  const home = mkdtempSync(join(directory, "custom-hook-"));
+  const claudeHome = join(home, "active-claude");
+  const codexHome = join(home, "active-codex");
+  const configHome = join(home, "active-config");
+  const env = { HOME: home, CLAUDE_CONFIG_DIR: claudeHome, CODEX_HOME: codexHome, XDG_CONFIG_HOME: configHome };
+  const setup = cli(["setup", "hooks"], env);
+  expect(setup.status, setup.stdout + setup.stderr).toBe(0);
+  for (const path of [join(claudeHome, "settings.json"), join(codexHome, "hooks.json")]) {
+    const command = JSON.parse(readFileSync(path, "utf8")).hooks.SessionStart[0].hooks[0].command;
+    const executed = spawnSync(command, { shell: true, encoding: "utf8", cwd: home, env: { ...process.env, ...env } });
+    expect(executed.status, executed.stdout + executed.stderr).toBe(0);
+    expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
+  }
+  expect(parse(readFileSync(join(codexHome, "config.toml"), "utf8"))).toEqual({ features: { hooks: true } });
+  await expectPluginContext(join(configHome, "opencode/plugins/axi-checkpoint-axi-hook.js"), home);
+  for (const name of [".claude", ".codex", ".config"]) expect(existsSync(join(home, name))).toBe(false);
 });
 
 test.each([".claude/settings.json", ".codex/hooks.json", ".codex/config.toml", ".config/opencode/plugins/axi-checkpoint-axi-hook.js"])("packaged setup reports a failed target without replacing it: %s", (relative) => {
@@ -129,21 +160,25 @@ test.each([".claude/settings.json", ".codex/hooks.json", ".codex/config.toml", "
   expect(statSync(target).isDirectory()).toBe(true);
 });
 
-test("packaged setup uses the matching PATH executable and rejects a shadowing executable", () => {
+test("packaged setup launches JavaScript hooks through Node despite PATH shadowing", async () => {
   const home = mkdtempSync(join(directory, "portable-hook-"));
   const bins = join(home, "bin");
   mkdirSync(bins);
-  symlinkSync(join(packageRoot, "bin/checkpoint-axi-hook.js"), join(bins, "checkpoint-axi-hook"));
+  writeFileSync(join(bins, "checkpoint-axi-hook"), "#!/bin/sh\nexit 99\n", { mode: 0o755 });
   const env = { HOME: home, USERPROFILE: home, PATH: `${bins}:${process.env.PATH}` };
   expect(cli(["setup", "hooks"], env).status).toBe(0);
-  const settings = join(home, ".claude/settings.json");
-  const command = () => JSON.parse(readFileSync(settings, "utf8")).hooks.SessionStart[0].hooks[0].command;
-  expect(command()).toBe("'checkpoint-axi-hook'");
-  const shadow = join(home, "shadow");
-  mkdirSync(shadow);
-  writeFileSync(join(shadow, "checkpoint-axi-hook"), "#!/bin/sh\nexit 99\n", { mode: 0o755 });
-  expect(cli(["setup", "hooks"], { ...env, PATH: `${shadow}:${env.PATH}` }).status).toBe(0);
-  expect(command()).toContain(join(packageRoot, "bin/checkpoint-axi-hook.js").replaceAll("'", "'\\''"));
+  const hook = join(packageRoot, "bin/checkpoint-axi-hook.js");
+  const mode = statSync(hook).mode;
+  chmodSync(hook, 0o644);
+  try {
+    for (const relative of [".claude/settings.json", ".codex/hooks.json"]) {
+      const command = JSON.parse(readFileSync(join(home, relative), "utf8")).hooks.SessionStart[0].hooks[0].command;
+      const executed = spawnSync(command, { shell: true, encoding: "utf8", cwd: home, env: { ...process.env, ...env } });
+      expect(executed.status, executed.stdout + executed.stderr).toBe(0);
+      expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
+    }
+    await expectPluginContext(join(home, ".config/opencode/plugins/axi-checkpoint-axi-hook.js"), home);
+  } finally { chmodSync(hook, mode); }
 });
 
 test.each([
@@ -166,7 +201,11 @@ test("installed OpenCode plugin injects home context through its supported sessi
   const home = mkdtempSync(join(directory, "opencode-hook-"));
   const result = cli(["setup", "hooks"], { HOME: home, USERPROFILE: home });
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  const { default: plugin } = await import(join(home, ".config/opencode/plugins/axi-checkpoint-axi-hook.js"));
+  await expectPluginContext(join(home, ".config/opencode/plugins/axi-checkpoint-axi-hook.js"), home);
+});
+
+async function expectPluginContext(path: string, home: string) {
+  const { default: plugin } = await import(path);
   const hooks = await plugin.server({ directory: home });
   const output = { system: [] as string[] };
   await hooks["experimental.chat.system.transform"]({ sessionID: "synthetic-session" }, output);
@@ -178,7 +217,7 @@ test("installed OpenCode plugin injects home context through its supported sessi
   const event = { sessionID: "synthetic-session-v2", system: [] as { type: string; text: string }[] };
   await context(event);
   expect(decode(event.system[0]!.text)).toMatchObject({ status: "not configured" });
-});
+}
 
 test("installed CLI shows an explicit empty local home without creating integrations", () => {
   const result = cli([]);

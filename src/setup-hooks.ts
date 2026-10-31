@@ -1,6 +1,6 @@
 import { AxiError, computeCodexConfigUpdate, computeSessionStartHookUpdate } from "axi-sdk-js";
-import { accessSync, constants, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { delimiter, dirname, join } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
@@ -9,22 +9,16 @@ import { parse } from "@iarna/toml";
 export function setupHooks(): Record<string, unknown> {
   const marker = "checkpoint-axi-hook";
   const execPath = fileURLToPath(new URL("../../bin/checkpoint-axi-hook.js", import.meta.url));
-  let executable = execPath;
-  for (const directory of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
-    const candidate = join(directory, marker);
-    try {
-      accessSync(candidate, constants.X_OK);
-      if (realpathSync(candidate) === realpathSync(execPath)) executable = marker;
-      break;
-    } catch { /* Continue until the first executable on PATH. */ }
-  }
-  const command = process.platform === "win32" ? `"${executable}"` : `'${executable.replaceAll("'", "'\\''")}'`;
+  const command = [process.execPath, execPath].map((path) => process.platform === "win32"
+    ? `"${path}"` : `'${path.replaceAll("'", "'\\''")}'`).join(" ");
   const home = homedir();
+  const claudeHome = process.env.CLAUDE_CONFIG_DIR || join(home, ".claude");
+  const codexHome = process.env.CODEX_HOME || join(home, ".codex");
   const integrations = {
-    claude: join(home, ".claude/settings.json"),
-    codex: join(home, ".codex/hooks.json"),
-    codexFeature: join(home, ".codex/config.toml"),
-    opencode: join(home, ".config/opencode/plugins/axi-checkpoint-axi-hook.js"),
+    claude: join(claudeHome, "settings.json"),
+    codex: join(codexHome, "hooks.json"),
+    codexFeature: join(codexHome, "config.toml"),
+    opencode: join(process.env.XDG_CONFIG_HOME || join(home, ".config"), "opencode/plugins/axi-checkpoint-axi-hook.js"),
   };
   const failures: string[] = [];
   for (const [agent, target] of Object.entries(integrations)) {
@@ -35,7 +29,7 @@ export function setupHooks(): Record<string, unknown> {
       let next: string;
       if (agent === "opencode") {
         if (current && !current.startsWith("// checkpoint-axi managed session plugin\n")) throw new Error("Unmanaged plugin");
-        next = openCodePlugin(executable);
+        next = openCodePlugin(execPath);
       } else if (agent === "codexFeature") {
         const parsed = parse(current);
         const features = parsed.features;
@@ -62,15 +56,16 @@ export function setupHooks(): Record<string, unknown> {
   return { status: "installed", integrations };
 }
 
-function openCodePlugin(executable: string): string {
+function openCodePlugin(execPath: string): string {
   return `// checkpoint-axi managed session plugin
 import { execFile } from "node:child_process";
-const executable = ${JSON.stringify(executable)};
+const node = ${JSON.stringify(process.execPath)};
+const entry = ${JSON.stringify(execPath)};
 function context(directory) {
   const sessions = new Map();
   return (id) => {
     if (!sessions.has(id)) sessions.set(id, new Promise((resolve) => {
-      execFile(executable, [], { cwd: directory, timeout: 25000, maxBuffer: 65536 }, (error, stdout) => {
+      execFile(node, [entry], { cwd: directory, timeout: 25000, maxBuffer: 65536 }, (error, stdout) => {
         resolve(stdout.trim() || (error ? "checkpoint-axi: context unavailable; run checkpoint-axi home --offline" : ""));
       });
     }));
