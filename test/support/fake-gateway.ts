@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { Agent, createServer } from "node:https";
 import { connect, type ConnectionOptions } from "node:tls";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { allowFakeServer } from "./deny-network.mjs";
+import { allowFakeServer } from "./deny-network.ts";
 
 export async function fakeGateway(handler: (request: IncomingMessage, response: ServerResponse, body: unknown) => void, trusted = true) {
   const directory = mkdtempSync(join(tmpdir(), "checkpoint-axi-tls-"));

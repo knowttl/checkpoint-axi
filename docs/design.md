@@ -154,7 +154,7 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 
 ## Change recipe and tests
 
-`scripts/generate-docs.mjs` generates the README group overview, full command reference and skill from the command catalogue, and owns the compact [investigation guide](agent-guide.md) prose.
+`scripts/generate-docs.ts` generates the README group overview, full command reference and skill from the command catalogue, and owns the compact [investigation guide](agent-guide.md) prose.
 `docs:check` detects drift after build, and `spec:check` detects coverage/provenance drift without networking.
 The identifier guard permits public vendor gateways, documentation hosts, reserved example domains, documentation IP ranges and explicitly synthetic UUIDs only.
 It is a guardrail alongside staged review, not a substitute for checking public-repository hygiene.

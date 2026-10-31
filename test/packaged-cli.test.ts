@@ -61,7 +61,7 @@ test.each([
   writeFileSync(config, readFileSync(new URL("./fixtures/profile.json", import.meta.url)), { mode: 0o600 });
   const result = cli([], { CHECKPOINT_AXI_CONFIG: config, SYNTHETIC_SECRET: "synthetic-packaged-secret",
     PACKAGED_GATEWAY_SCENARIO: scenario as string,
-    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --experimental-strip-types --import=${fileURLToPath(new URL("./support/packaged-gateway.mjs", import.meta.url))}` });
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --experimental-strip-types --import=${fileURLToPath(new URL("./support/packaged-gateway.ts", import.meta.url))}` });
   expect(result.status, result.stdout + result.stderr).toBe(code);
   expect(decode(result.stdout)).toMatchObject(expected);
   expect(result.stdout + result.stderr).not.toMatch(/synthetic-packaged-secret|synthetic-packaged-token/);

@@ -34,14 +34,14 @@
   "packageManager": "pnpm@10.34.6",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.tooling.json",
     "lint": "corepack pnpm run typecheck",
-    "test": "node scripts/isolated.mjs node scripts/test-changes.mjs",
-    "docs:generate": "node scripts/generate-docs.mjs",
-    "docs:check": "node scripts/generate-docs.mjs --check",
-    "spec:generate": "node scripts/specs.mjs --generate",
-    "spec:check": "node scripts/specs.mjs --check",
-    "identifiers:check": "node scripts/check-identifiers.mjs"
+    "test": "node scripts/isolated.ts node scripts/test-changes.ts",
+    "docs:generate": "node scripts/generate-docs.ts",
+    "docs:check": "node scripts/generate-docs.ts --check",
+    "spec:generate": "node scripts/specs.ts --generate",
+    "spec:check": "node scripts/specs.ts --check",
+    "identifiers:check": "node scripts/check-identifiers.ts"
   },
   "dependencies": {
     "@iarna/toml": "2.2.5",
