@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { decode } from "@toon-format/toon";
@@ -39,6 +39,13 @@ function cli(args: string[], env: NodeJS.ProcessEnv = {}, bin = entry) {
   const home = env.HOME ?? directory;
   return spawnSync(process.execPath, [bin, ...args], { encoding: "utf8", cwd: directory, timeout: 10_000,
     env: { ...process.env, HOME: home, USERPROFILE: home, CODEX_HOME: "", CLAUDE_CONFIG_DIR: "", XDG_CONFIG_HOME: join(home, ".config"), ...env } });
+}
+
+function executeHook(hook: { command: string; args?: string[] }, env: NodeJS.ProcessEnv) {
+  const options = { encoding: "utf8" as const, cwd: env.HOME, timeout: 10_000, env: { ...process.env, ...env } };
+  return hook.args !== undefined ? spawnSync(hook.command, hook.args, options)
+    : process.platform === "win32" ? spawnSync("powershell.exe", ["-NoProfile", "-Command", hook.command], options)
+      : spawnSync("bash", ["-c", hook.command], options);
 }
 
 test.each([
@@ -91,12 +98,14 @@ test("opt-in packaged setup preserves settings, repeats without writes and repai
   const feature = join(home, ".codex/config.toml");
   const plugin = join(home, ".config/opencode/plugins/axi-checkpoint-axi-hook.js");
   const unrelated = { permissions: { allow: ["Read"] }, hooks: { SessionStart: [{ hooks: [{ type: "command", command: "other-tool" }] }] } };
-  writeFileSync(settings, JSON.stringify(unrelated));
-  writeFileSync(codex, JSON.stringify(unrelated));
+  const previous = { ...unrelated, hooks: { SessionStart: [...unrelated.hooks.SessionStart,
+    { hooks: [{ type: "command", command: "checkpoint-axi-hook missing-installation" }] }] } };
+  writeFileSync(settings, JSON.stringify(previous));
+  writeFileSync(codex, JSON.stringify(previous));
   writeFileSync(feature, 'model = "example"\n[features]\nhooks = false\nother = true\n');
   const env = { HOME: home, USERPROFILE: home };
   expect(cli(["home", "--offline"], env).status).toBe(0);
-  expect(readFileSync(settings, "utf8")).toBe(JSON.stringify(unrelated));
+  expect(readFileSync(settings, "utf8")).toBe(JSON.stringify(previous));
   expect(existsSync(plugin)).toBe(false);
   const setup = cli(["setup", "hooks"], env);
   expect(setup.status, setup.stdout + setup.stderr).toBe(0);
@@ -104,8 +113,7 @@ test("opt-in packaged setup preserves settings, repeats without writes and repai
     const saved = JSON.parse(readFileSync(path, "utf8"));
     expect(saved.permissions).toEqual(unrelated.permissions);
     expect(saved.hooks.SessionStart[0]).toEqual(unrelated.hooks.SessionStart[0]);
-    const hook = saved.hooks.SessionStart[1].hooks[0].command;
-    const executed = spawnSync(hook, { shell: true, encoding: "utf8", env: { ...process.env, ...env } });
+    const executed = executeHook(saved.hooks.SessionStart[1].hooks[0], env);
     expect(executed.status, executed.stdout + executed.stderr).toBe(0);
     expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
   }
@@ -121,8 +129,8 @@ test("opt-in packaged setup preserves settings, repeats without writes and repai
   renameSync(packageRoot, hidden);
   try {
     for (const path of [settings, codex]) {
-      const command = JSON.parse(readFileSync(path, "utf8")).hooks.SessionStart[1].hooks[0].command;
-      const executed = spawnSync(command, { shell: true, encoding: "utf8", cwd: home, env: { ...process.env, ...env } });
+      const hook = JSON.parse(readFileSync(path, "utf8")).hooks.SessionStart[1].hooks[0];
+      const executed = executeHook(hook, env);
       expect(executed.status, executed.stdout + executed.stderr).toBe(0);
       expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
     }
@@ -139,8 +147,8 @@ test("packaged setup honors active agent configuration directories", async () =>
   const setup = cli(["setup", "hooks"], env);
   expect(setup.status, setup.stdout + setup.stderr).toBe(0);
   for (const path of [join(claudeHome, "settings.json"), join(codexHome, "hooks.json")]) {
-    const command = JSON.parse(readFileSync(path, "utf8")).hooks.SessionStart[0].hooks[0].command;
-    const executed = spawnSync(command, { shell: true, encoding: "utf8", cwd: home, env: { ...process.env, ...env } });
+    const hook = JSON.parse(readFileSync(path, "utf8")).hooks.SessionStart[0].hooks[0];
+    const executed = executeHook(hook, env);
     expect(executed.status, executed.stdout + executed.stderr).toBe(0);
     expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
   }
@@ -165,20 +173,51 @@ test("packaged setup launches JavaScript hooks through Node despite PATH shadowi
   const bins = join(home, "bin");
   mkdirSync(bins);
   writeFileSync(join(bins, "checkpoint-axi-hook"), "#!/bin/sh\nexit 99\n", { mode: 0o755 });
-  const env = { HOME: home, USERPROFILE: home, PATH: `${bins}:${process.env.PATH}` };
+  const env = { HOME: home, USERPROFILE: home, PATH: `${bins}${delimiter}${process.env.PATH}` };
   expect(cli(["setup", "hooks"], env).status).toBe(0);
   const hook = join(packageRoot, "bin/checkpoint-axi-hook.js");
   const mode = statSync(hook).mode;
   chmodSync(hook, 0o644);
   try {
     for (const relative of [".claude/settings.json", ".codex/hooks.json"]) {
-      const command = JSON.parse(readFileSync(join(home, relative), "utf8")).hooks.SessionStart[0].hooks[0].command;
-      const executed = spawnSync(command, { shell: true, encoding: "utf8", cwd: home, env: { ...process.env, ...env } });
+      const hook = JSON.parse(readFileSync(join(home, relative), "utf8")).hooks.SessionStart[0].hooks[0];
+      const executed = executeHook(hook, env);
       expect(executed.status, executed.stdout + executed.stderr).toBe(0);
       expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
     }
     await expectPluginContext(join(home, ".config/opencode/plugins/axi-checkpoint-axi-hook.js"), home);
   } finally { chmodSync(hook, mode); }
+});
+
+test.skipIf(process.platform === "win32")("matching PATH hooks survive relocation without setup", async () => {
+  const home = mkdtempSync(join(directory, "matching-hook-"));
+  const bins = join(home, "bin");
+  mkdirSync(bins);
+  const launcher = join(bins, "checkpoint-axi-hook");
+  symlinkSync(join(packageRoot, "bin/checkpoint-axi-hook.js"), launcher);
+  const env = { HOME: home, PATH: `${bins}${delimiter}${process.env.PATH}` };
+  const setup = cli(["setup", "hooks"], env);
+  expect(setup.status, setup.stdout + setup.stderr).toBe(0);
+  const moved = join(dirname(packageRoot), "portable-package");
+  cpSync(packageRoot, moved, { recursive: true });
+  rmSync(launcher);
+  symlinkSync(join(moved, "bin/checkpoint-axi-hook.js"), launcher);
+  const hidden = `${packageRoot}-hidden`;
+  const previousPath = process.env.PATH;
+  renameSync(packageRoot, hidden);
+  try {
+    for (const relative of [".claude/settings.json", ".codex/hooks.json"]) {
+      const hook = JSON.parse(readFileSync(join(home, relative), "utf8")).hooks.SessionStart[0].hooks[0];
+      const executed = executeHook(hook, env);
+      expect(executed.status, executed.stdout + executed.stderr).toBe(0);
+      expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
+    }
+    process.env.PATH = env.PATH;
+    await expectPluginContext(join(home, ".config/opencode/plugins/axi-checkpoint-axi-hook.js"), home);
+  } finally {
+    process.env.PATH = previousPath;
+    renameSync(hidden, packageRoot);
+  }
 });
 
 test.each([
