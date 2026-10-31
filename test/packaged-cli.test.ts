@@ -224,6 +224,30 @@ test("packaged setup launches JavaScript hooks through Node despite PATH shadowi
   } finally { chmodSync(hook, mode); }
 });
 
+test.skipIf(process.platform === "win32").each(["", ".", "relative-bin"])("setup avoids session-directory shadows with PATH entry %j", async (prefix) => {
+  const home = mkdtempSync(join(directory, "cwd-hook-"));
+  const bins = join(home, "safe-bin");
+  const shadowDirectory = join(home, prefix);
+  mkdirSync(bins);
+  mkdirSync(shadowDirectory, { recursive: true });
+  symlinkSync(join(packageRoot, "bin/checkpoint-axi-hook.js"), join(bins, "checkpoint-axi-hook"));
+  writeFileSync(join(shadowDirectory, "checkpoint-axi-hook"), "#!/bin/sh\nexit 99\n", { mode: 0o755 });
+  const env = { HOME: home, PATH: `${prefix}${delimiter}${bins}${delimiter}${process.env.PATH}` };
+  const setup = cli(["setup", "hooks"], env);
+  expect(setup.status, setup.stdout + setup.stderr).toBe(0);
+  for (const relative of [".claude/settings.json", ".codex/hooks.json"]) {
+    const hook = JSON.parse(readFileSync(join(home, relative), "utf8")).hooks.SessionStart[0].hooks[0];
+    const executed = executeHook(hook, env);
+    expect(executed.status, executed.stdout + executed.stderr).toBe(0);
+    expect(decode(executed.stdout)).toMatchObject({ status: "not configured" });
+  }
+  const previousPath = process.env.PATH;
+  try {
+    process.env.PATH = env.PATH;
+    await expectPluginContext(join(home, ".config/opencode/plugins/axi-checkpoint-axi-hook.js"), home);
+  } finally { process.env.PATH = previousPath; }
+});
+
 test.skipIf(process.platform === "win32")("matching PATH hooks survive relocation without setup", async () => {
   const home = mkdtempSync(join(directory, "matching-hook-"));
   const bins = join(home, "bin");

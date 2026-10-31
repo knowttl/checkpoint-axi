@@ -1,6 +1,6 @@
 import { AxiError, computeCodexConfigUpdate } from "axi-sdk-js";
 import { accessSync, constants, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { delimiter, dirname, join } from "node:path";
+import { delimiter, dirname, isAbsolute, join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
@@ -14,7 +14,8 @@ export function setupHooks(): Record<string, unknown> {
   let executable = process.execPath;
   let args = [execPath];
   if (process.platform !== "win32") {
-    for (const directory of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
+    for (const directory of (process.env.PATH ?? "").split(delimiter)) {
+      if (!isAbsolute(directory)) break;
       const candidate = join(directory, marker);
       try {
         accessSync(candidate, constants.X_OK);
