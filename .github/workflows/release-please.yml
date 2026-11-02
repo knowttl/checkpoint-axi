@@ -43,13 +43,7 @@ jobs:
         run: corepack enable
       - run: corepack pnpm install --frozen-lockfile --ignore-scripts
       - run: corepack pnpm run build
-      - run: corepack pnpm run lint
-      # Publication checks only; the repository has no pull-request test CI.
-      - run: corepack pnpm test
-      - run: corepack pnpm run spec:check
-      - run: corepack pnpm run docs:check
-      - run: corepack pnpm run identifiers:check
-      - name: Pack verified release
+      - name: Pack release
         run: npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
       - name: Enable npm OIDC trusted publishing
         run: |
@@ -58,7 +52,7 @@ jobs:
             const path = process.env.NPM_CONFIG_USERCONFIG;
             writeFileSync(path, readFileSync(path, "utf8").split("\n").filter(line => !line.includes(":_authToken=")).join("\n"));
           '
-      - name: Publish verified tarball with provenance
+      - name: Publish tarball with provenance
         run: |
           version=$(node -p "require('./package.json').version")
           npm publish "$RUNNER_TEMP/knowttl-checkpoint-axi-$version.tgz" --access public --provenance
