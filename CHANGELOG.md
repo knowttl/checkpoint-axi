@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/knowttl/checkpoint-axi/compare/v0.1.5...v0.1.6) (2026-11-02)
+
+
+### Features
+
+* add live home summaries and opt-in session hook setup ([#32](https://github.com/knowttl/checkpoint-axi/issues/32)) ([d13b9ba](https://github.com/knowttl/checkpoint-axi/commit/d13b9ba414621f125e77a05dcdfa2608b2d91403))
+
 ## [0.1.5](https://github.com/knowttl/checkpoint-axi/compare/v0.1.4...v0.1.5) (2026-10-30)
 
 
