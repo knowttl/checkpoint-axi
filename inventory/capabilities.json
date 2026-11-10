@@ -18,7 +18,7 @@
       "pages": "8-9",
       "slice": "C2",
       "disposition": "auth",
-      "reason": "Shipped in C2; commission the undocumented token contract manually.",
+      "reason": "Shipped in C2; accepted catalog exception: responses without one unambiguous token fail `AUTH_SHAPE_UNVERIFIED` until owner commissioning in #37.",
       "source": "email-security-api",
       "sourceSha256": "77d99a258462f13890743811aaaae797843a3d1890bf5726b0b008f0296f5825",
       "executable": true

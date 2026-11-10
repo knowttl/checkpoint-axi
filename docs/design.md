@@ -116,7 +116,7 @@ Legacy whitelist/blacklist reads remain recorded separately from the eight excep
 
 | Capability | Pages | Slice | Disposition | Reason |
 |---|---|---|---|---|
-| `auth exchange and doctor` | 8-9 | C2 | auth | Shipped in C2; commission the undocumented token contract manually. |
+| `auth exchange and doctor` | 8-9 | C2 | auth | Shipped in C2; accepted catalog exception: responses without one unambiguous token fail `AUTH_SHAPE_UNVERIFIED` until owner commissioning in #37. |
 | `email search and show` | 10-27 | C3 | read | Shipped in C3; GET entity detail and POST search/query with bounded scroll. |
 | `event list and show` | 34-42 | C4 | read | Shipped in C4; GET event detail and POST event/query with bounded scroll. |
 | `task show` | 30-33 | C4 | read | Shipped in C4; GET task status and per-action details for asynchronous actions. |
