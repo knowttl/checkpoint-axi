@@ -173,7 +173,7 @@ Bare `--version`, `-v` or `-V` prints the package version.
 |---|---|
 | `PROFILE_REQUIRED` | Configure a complete environment profile or a named file profile. |
 | `CONFIG_INSECURE` | Apply the [private-file permissions](docs/configuration.md) for your platform. |
-| `AUTH_SHAPE_UNVERIFIED` | Verify the undocumented token contract manually; never paste the response into chat. |
+| `AUTH_SHAPE_UNVERIFIED` | Request [owner commissioning](docs/design.md#api-coverage-ledger); never paste the response into chat. |
 | `ENDPOINT_UNVERIFIED` | Read the [operation limitations](docs/writes.md); the CLI refuses to guess. |
 | `OUTCOME_UNKNOWN` | Reconcile with read commands and the journal; never replay automatically. |
 
